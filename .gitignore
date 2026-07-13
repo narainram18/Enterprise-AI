@@ -1,0 +1,58 @@
+# =========================
+# Java / Maven
+# =========================
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Maven Wrapper
+!.mvn/wrapper/maven-wrapper.jar
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Node / React
+# =========================
+node_modules/
+dist/
+coverage/
+
+# =========================
+# Environment
+# =========================
+.env
+.env.*
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# Temporary
+# =========================
+tmp/
+temp/
+
+# =========================
+# Secrets
+# =========================
+application-local.properties
+application-prod.properties
