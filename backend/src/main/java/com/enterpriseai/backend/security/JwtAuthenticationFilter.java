@@ -2,12 +2,18 @@ package com.enterpriseai.backend.security;
 
 import java.io.IOException;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.enterpriseai.backend.common.ErrorResponse;
+import com.enterpriseai.backend.security.JwtService.JwtValidationResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,13 +25,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final ObjectMapper objectMapper;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            CustomUserDetailsService userDetailsService) {
+            CustomUserDetailsService userDetailsService,
+            ObjectMapper objectMapper) {
 
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -43,15 +52,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String jwt = authHeader.substring(7);
-        String email = jwtService.extractUsername(jwt);
+        JwtValidationResult validation = jwtService.validateToken(jwt);
 
-        if (email != null &&
-                SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (!validation.isValid()) {
+            writeUnauthorizedResponse(response, validation.getErrorMessage());
+            return;
+        }
 
-            UserDetails userDetails =
-                    userDetailsService.loadUserByUsername(email);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            if (jwtService.isTokenValid(jwt, email)) {
+            try {
+                String email = validation.getUsername();
+                UserDetails userDetails =
+                        userDetailsService.loadUserByUsername(email);
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
@@ -64,9 +77,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext()
                         .setAuthentication(authToken);
+            } catch (RuntimeException ex) {
+                SecurityContextHolder.clearContext();
+                writeUnauthorizedResponse(response, "Invalid JWT token");
+                return;
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void writeUnauthorizedResponse(
+            HttpServletResponse response,
+            String message)
+            throws IOException {
+
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(
+                response.getWriter(),
+                new ErrorResponse(message));
     }
 }
