@@ -1,8 +1,11 @@
 package com.enterpriseai.backend.exception;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -44,17 +47,29 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex) {
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse("Access denied"));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException ex) {
 
-        FieldError fieldError = ex.getBindingResult().getFieldError();
-        String message = fieldError == null
-                ? "Invalid request"
-                : fieldError.getDefaultMessage();
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        ex.getBindingResult()
+                .getFieldErrors()
+                .forEach(error ->
+                        errors.putIfAbsent(
+                                error.getField(),
+                                error.getDefaultMessage()));
 
         return ResponseEntity.badRequest()
-                .body(new ErrorResponse(message));
+                .body(new ErrorResponse(errors));
     }
 
     @ExceptionHandler(Exception.class)
