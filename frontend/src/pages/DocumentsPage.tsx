@@ -1,0 +1,9 @@
+import { useState } from 'react'
+import { FileText, FolderUp, Search, SlidersHorizontal, Upload } from 'lucide-react'
+import { Button, EmptyState, IconButton } from '../components/ui/Ui'
+
+export function DocumentsPage() {
+  const [notice, setNotice] = useState('')
+  function chooseFile() { setNotice('Document upload is ready for integration, but the current backend does not expose a document upload endpoint.') }
+  return <div className="documents-page"><div className="page-intro"><div><p className="section-kicker">Knowledge base</p><h2>Documents</h2><p>Organize the sources your team uses to think, decide, and execute.</p></div><Button onClick={chooseFile}><Upload size={16} />Upload document</Button></div><div className="document-toolbar"><label><Search size={17} /><input placeholder="Search documents" aria-label="Search documents" /></label><button><SlidersHorizontal size={16} />All types</button><button>All statuses</button></div>{notice && <p className="integration-notice">{notice}</p>}<section className="document-dropzone" onClick={chooseFile} onKeyDown={(event) => { if (event.key === 'Enter') chooseFile() }} role="button" tabIndex={0}><span><FolderUp size={26} /></span><h3>Upload knowledge for your workspace</h3><p>Drag and drop a file here, or click to browse.</p><small>Supported formats: PDF, DOCX, XLSX</small></section><section className="workspace-panel document-list-panel"><div className="section-heading"><div><p className="section-kicker">Your library</p><h2>All documents</h2></div></div><EmptyState icon={<FileText size={22} />} title="Your document library is empty" description="Connect the document service to upload, process, and ask AI about files." action={<IconButton label="Upload document" onClick={chooseFile}><Upload size={17} /></IconButton>} /></section></div>
+}

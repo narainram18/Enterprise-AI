@@ -1,0 +1,4 @@
+import { Bot, FileText, MessageSquare, Search } from 'lucide-react'
+import { EmptyState } from '../components/ui/Ui'
+
+export function SearchPage() { return <div className="search-page"><div className="search-hero"><p className="section-kicker">Workspace discovery</p><h2>Find what matters</h2><label className="global-search"><Search size={21} /><input placeholder="Search chats, documents and workspace knowledge…" aria-label="Search workspace" autoFocus /><kbd>⌘ K</kbd></label><div className="search-filters"><button className="active">All</button><button><MessageSquare size={14} />Chats</button><button><FileText size={14} />Documents</button><button>People</button><button><Bot size={14} />Agents</button></div></div><EmptyState icon={<Search size={24} />} title="Search your workspace" description="Search results will appear here when chat, document, and knowledge services are connected." /></div> }
