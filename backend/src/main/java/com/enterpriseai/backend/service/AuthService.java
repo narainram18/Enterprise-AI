@@ -15,6 +15,7 @@ import com.enterpriseai.backend.entity.User;
 import com.enterpriseai.backend.exception.DuplicateResourceException;
 import com.enterpriseai.backend.exception.ResourceNotFoundException;
 import com.enterpriseai.backend.exception.UnauthorizedException;
+import com.enterpriseai.backend.mapper.UserMapper;
 import com.enterpriseai.backend.repository.UserRepository;
 import com.enterpriseai.backend.security.JwtService;
 
@@ -27,17 +28,20 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final UserMapper userMapper;
 
     public AuthService(
             UserRepository repository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            UserMapper userMapper) {
 
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.userMapper = userMapper;
     }
 
     public void register(RegisterRequest request) {
@@ -46,10 +50,7 @@ public class AuthService {
             throw new DuplicateResourceException("Email already exists");
         }
 
-        User user = new User();
-
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
 
@@ -84,11 +85,6 @@ public class AuthService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 
-        return new UserProfileResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole().name()
-        );
+        return userMapper.toProfileResponse(user);
     }
 }
