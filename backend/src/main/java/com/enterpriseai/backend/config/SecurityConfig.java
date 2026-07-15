@@ -13,15 +13,20 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.enterpriseai.backend.security.JwtAuthenticationFilter;
+import com.enterpriseai.backend.security.JsonSecurityExceptionHandler;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final JsonSecurityExceptionHandler securityExceptionHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtFilter,
+            JsonSecurityExceptionHandler securityExceptionHandler) {
         this.jwtFilter = jwtFilter;
+        this.securityExceptionHandler = securityExceptionHandler;
     }
 
     @Bean
@@ -54,6 +59,9 @@ public class SecurityConfig {
                                         "/swagger-ui/**")
                                 .permitAll()
                                 .anyRequest().authenticated())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityExceptionHandler)
+                        .accessDeniedHandler(securityExceptionHandler))
                 .addFilterBefore(
                         jwtFilter,
                         UsernamePasswordAuthenticationFilter.class);

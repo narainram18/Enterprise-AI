@@ -5,13 +5,13 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.enterpriseai.backend.dto.AuthResponse;
+import com.enterpriseai.backend.config.JwtProperties;
 import com.enterpriseai.backend.entity.RefreshToken;
 import com.enterpriseai.backend.entity.User;
 import com.enterpriseai.backend.exception.UnauthorizedException;
@@ -28,15 +28,16 @@ public class RefreshTokenService {
     private final JwtService jwtService;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration;
+    private final JwtProperties jwtProperties;
 
     public RefreshTokenService(
             RefreshTokenRepository repository,
-            JwtService jwtService) {
+            JwtService jwtService,
+            JwtProperties jwtProperties) {
 
         this.repository = repository;
         this.jwtService = jwtService;
+        this.jwtProperties = jwtProperties;
     }
 
     @Transactional
@@ -46,7 +47,8 @@ public class RefreshTokenService {
         refreshToken.setUser(user);
         refreshToken.setToken(generateSecureToken());
         refreshToken.setExpiresAt(
-                LocalDateTime.now().plus(refreshExpiration, ChronoUnit.MILLIS));
+                LocalDateTime.now().plus(
+                        jwtProperties.refreshExpiration(), ChronoUnit.MILLIS));
         refreshToken.setRevoked(false);
 
         return repository.save(refreshToken);

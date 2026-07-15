@@ -16,6 +16,8 @@ public final class UserSpecifications {
         }
 
         String pattern = "%" + search.trim().toLowerCase() + "%";
+
+        // Search is deliberately limited to public user fields; credentials never enter the query.
         return (root, query, criteriaBuilder) -> criteriaBuilder.or(
                 criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), pattern),
                 criteriaBuilder.like(criteriaBuilder.lower(root.get("email")), pattern));

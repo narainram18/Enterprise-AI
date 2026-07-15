@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.enterpriseai.backend.common.PageResponse;
 import com.enterpriseai.backend.dto.UserProfileResponse;
@@ -32,6 +33,7 @@ public class UserService {
         this.userMapper = userMapper;
     }
 
+    @Transactional(readOnly = true)
     public PageResponse<UserProfileResponse> searchUsers(
             int page,
             int size,
@@ -80,11 +82,9 @@ public class UserService {
         if (direction == null || direction.isBlank()) {
             return Sort.Direction.DESC;
         }
-        try {
-            return Sort.Direction.fromString(direction);
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Sort direction must be ASC or DESC");
-        }
+        return Sort.Direction.fromOptionalString(direction)
+                .orElseThrow(() ->
+                        new BadRequestException("Sort direction must be ASC or DESC"));
     }
 
     private Role resolveRole(String roleValue) {

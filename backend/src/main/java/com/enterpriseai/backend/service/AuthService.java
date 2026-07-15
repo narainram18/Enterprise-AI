@@ -2,6 +2,7 @@ package com.enterpriseai.backend.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ public class AuthService {
         this.userMapper = userMapper;
     }
 
+    @Transactional
     public void register(RegisterRequest request) {
 
         if (repository.existsByEmail(request.getEmail())) {
@@ -79,6 +81,7 @@ public class AuthService {
         return new AuthResponse(token, refreshToken.getToken());
     }
 
+    @Transactional(readOnly = true)
     public UserProfileResponse getCurrentUser(String email) {
 
         User user = repository.findByEmail(email)

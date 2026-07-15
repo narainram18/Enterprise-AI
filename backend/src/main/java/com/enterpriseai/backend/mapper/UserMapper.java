@@ -10,7 +10,7 @@ import com.enterpriseai.backend.entity.User;
 
 @Mapper(
         componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE)
+        unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface UserMapper {
 
     @Mapping(target = "id", ignore = true)
