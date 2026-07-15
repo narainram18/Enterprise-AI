@@ -4,6 +4,8 @@ import java.io.IOException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +24,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
@@ -55,6 +59,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         JwtValidationResult validation = jwtService.validateToken(jwt);
 
         if (!validation.isValid()) {
+            log.warn("JWT authentication failed path={} reason={}",
+                    request.getRequestURI(), validation.getErrorMessage());
             writeUnauthorizedResponse(response, validation.getErrorMessage());
             return;
         }
@@ -79,6 +85,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .setAuthentication(authToken);
             } catch (RuntimeException ex) {
                 SecurityContextHolder.clearContext();
+                log.warn("JWT authentication failed path={} reason=user_not_found",
+                        request.getRequestURI());
                 writeUnauthorizedResponse(response, "Invalid JWT token");
                 return;
             }

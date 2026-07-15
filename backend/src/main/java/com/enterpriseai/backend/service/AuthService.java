@@ -2,6 +2,8 @@ package com.enterpriseai.backend.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.enterpriseai.backend.dto.AuthResponse;
 import com.enterpriseai.backend.dto.LoginRequest;
@@ -18,6 +20,8 @@ import com.enterpriseai.backend.security.JwtService;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
@@ -50,20 +54,26 @@ public class AuthService {
         user.setRole(Role.USER);
 
         repository.save(user);
+        log.info("User registration succeeded email={}", request.getEmail());
     }
 
     public AuthResponse login(LoginRequest request) {
 
         User user = repository.findByEmail(request.getEmail())
-                .orElseThrow(() ->
-                        new UnauthorizedException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.warn("Login failed reason=unknown_user email={}", request.getEmail());
+                    return new UnauthorizedException("Invalid email or password");
+                });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.warn("Login failed reason=invalid_password email={}", request.getEmail());
             throw new UnauthorizedException("Invalid email or password");
         }
 
         String token = jwtService.generateToken(user.getEmail());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        log.info("Login succeeded email={}", user.getEmail());
 
         return new AuthResponse(token, refreshToken.getToken());
     }

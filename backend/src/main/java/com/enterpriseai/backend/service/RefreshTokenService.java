@@ -8,6 +8,8 @@ import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.enterpriseai.backend.dto.AuthResponse;
 import com.enterpriseai.backend.entity.RefreshToken;
@@ -20,6 +22,7 @@ import com.enterpriseai.backend.security.JwtService;
 public class RefreshTokenService {
 
     private static final int TOKEN_BYTES = 64;
+    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
     private final RefreshTokenRepository repository;
     private final JwtService jwtService;
@@ -60,6 +63,8 @@ public class RefreshTokenService {
         RefreshToken newRefreshToken = createRefreshToken(user);
         String accessToken = jwtService.generateToken(user.getEmail());
 
+        log.info("Refresh token rotation succeeded email={}", user.getEmail());
+
         return new AuthResponse(accessToken, newRefreshToken.getToken());
     }
 
@@ -71,20 +76,25 @@ public class RefreshTokenService {
 
         refreshToken.setRevoked(true);
         repository.save(refreshToken);
+        log.info("Refresh token revoked successfully");
     }
 
     private RefreshToken getValidToken(String token) {
         RefreshToken refreshToken = repository.findByToken(token)
-                .orElseThrow(() ->
-                        new UnauthorizedException("Invalid refresh token"));
+                .orElseThrow(() -> {
+                    log.warn("Refresh token validation failed reason=not_found");
+                    return new UnauthorizedException("Invalid refresh token");
+                });
 
         if (refreshToken.isRevoked()) {
+            log.warn("Refresh token validation failed reason=revoked");
             throw new UnauthorizedException("Refresh token has been revoked");
         }
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshToken.setRevoked(true);
             repository.save(refreshToken);
+            log.warn("Refresh token validation failed reason=expired");
             throw new UnauthorizedException("Refresh token has expired");
         }
 
