@@ -3,13 +3,16 @@ package com.enterpriseai.backend.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.enterpriseai.backend.common.ApiResponse;
+import com.enterpriseai.backend.common.PageResponse;
 import com.enterpriseai.backend.config.OpenApiConfig;
 import com.enterpriseai.backend.dto.UserProfileResponse;
 import com.enterpriseai.backend.service.AuthService;
+import com.enterpriseai.backend.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,9 +27,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class UserController {
 
     private final AuthService authService;
+    private final UserService userService;
 
-    public UserController(AuthService authService) {
+    public UserController(AuthService authService, UserService userService) {
         this.authService = authService;
+        this.userService = userService;
     }
 
     @GetMapping("/api/users/me")
@@ -82,5 +87,26 @@ public class UserController {
                         user
                 )
         );
+    }
+
+    @GetMapping("/api/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "List users",
+            description = "Returns a paginated, searchable, and filterable user list for administrators.",
+            security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
+    public ResponseEntity<ApiResponse<PageResponse<UserProfileResponse>>> getUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role) {
+
+        PageResponse<UserProfileResponse> users = userService.searchUsers(
+                page, size, sortBy, direction, search, role);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Users fetched successfully", users));
     }
 }
