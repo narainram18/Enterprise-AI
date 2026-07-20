@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.enterpriseai.backend.common.ApiResponse;
 import com.enterpriseai.backend.common.PageResponse;
 import com.enterpriseai.backend.config.OpenApiConfig;
+import com.enterpriseai.backend.ai.service.AiChatService;
+import com.enterpriseai.backend.dto.AiChatTurnResponse;
 import com.enterpriseai.backend.dto.ChatMessageResponse;
 import com.enterpriseai.backend.dto.ConversationResponse;
 import com.enterpriseai.backend.dto.ConversationSummaryResponse;
@@ -40,9 +42,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ConversationController {
 
     private final ConversationService conversationService;
+    private final AiChatService aiChatService;
 
-    public ConversationController(ConversationService conversationService) {
+    public ConversationController(
+            ConversationService conversationService,
+            AiChatService aiChatService) {
         this.conversationService = conversationService;
+        this.aiChatService = aiChatService;
     }
 
     @PostMapping
@@ -113,16 +119,16 @@ public class ConversationController {
 
     @PostMapping("/{id}/messages")
     @Operation(
-            summary = "Add message",
-            description = "Adds a user message to the specified conversation.",
+            summary = "Send chat message",
+            description = "Adds a user message and generates an assistant response in the specified conversation.",
             security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
-    public ResponseEntity<ApiResponse<ChatMessageResponse>> addUserMessage(
+    public ResponseEntity<ApiResponse<AiChatTurnResponse>> addUserMessage(
             @PathVariable Long id,
             @Valid @RequestBody CreateMessageRequest request,
             @Parameter(hidden = true) Authentication authentication) {
-        ChatMessageResponse response = conversationService.addUserMessage(id, authentication.getName(), request);
+        AiChatTurnResponse response = aiChatService.chat(id, authentication.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, "Message added successfully", response));
+                .body(new ApiResponse<>(true, "Chat response generated successfully", response));
     }
 
     @GetMapping("/{id}/messages")

@@ -110,6 +110,12 @@ public class ConversationService {
 
     @Transactional
     public ChatMessageResponse addUserMessage(Long conversationId, String currentUserEmail, CreateMessageRequest request) {
+        return conversationMapper.toMessageResponse(
+                saveUserMessage(conversationId, currentUserEmail, request));
+    }
+
+    @Transactional
+    public ChatMessage saveUserMessage(Long conversationId, String currentUserEmail, CreateMessageRequest request) {
         User user = getUserByEmail(currentUserEmail);
         Conversation conversation = getConversationByIdAndUser(conversationId, user);
         
@@ -124,7 +130,25 @@ public class ConversationService {
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
         
-        return conversationMapper.toMessageResponse(message);
+        return message;
+    }
+
+    @Transactional
+    public ChatMessage saveAssistantMessage(Long conversationId, String currentUserEmail, String content) {
+        User user = getUserByEmail(currentUserEmail);
+        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+
+        ChatMessage message = new ChatMessage();
+        message.setConversation(conversation);
+        message.setRole(MessageRole.ASSISTANT);
+        message.setContent(content);
+
+        message = chatMessageRepository.save(message);
+
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+
+        return message;
     }
 
     @Transactional(readOnly = true)

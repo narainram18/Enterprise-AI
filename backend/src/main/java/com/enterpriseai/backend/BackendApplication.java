@@ -1,8 +1,11 @@
 package com.enterpriseai.backend;
 
+import com.enterpriseai.backend.ai.config.OllamaProperties;
+import com.enterpriseai.backend.ai.config.AiChatProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.slf4j.Logger;
@@ -10,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
+@EnableConfigurationProperties({OllamaProperties.class, AiChatProperties.class})
 public class BackendApplication {
 
 	private static final Logger log = LoggerFactory.getLogger(BackendApplication.class);

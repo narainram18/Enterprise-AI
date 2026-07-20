@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.enterpriseai.backend.common.ErrorResponse;
+import com.enterpriseai.backend.ai.exception.AiGenerationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -59,6 +60,17 @@ public class GlobalExceptionHandler {
         log.warn("Request failed status=401 exception={}", ex.getClass().getSimpleName());
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AiGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleAiGeneration(
+            AiGenerationException ex) {
+
+        log.warn("AI generation failed status=502 exception={}",
+                ex.getClass().getSimpleName());
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
