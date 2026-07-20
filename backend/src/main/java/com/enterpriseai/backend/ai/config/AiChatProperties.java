@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "ai.chat")
 public record AiChatProperties(
-        int maxContextMessages
+        int maxContextMessages,
+        long streamTimeout
 ) {
 }

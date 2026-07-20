@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +18,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.enterpriseai.backend.common.ApiResponse;
 import com.enterpriseai.backend.common.PageResponse;
 import com.enterpriseai.backend.config.OpenApiConfig;
 import com.enterpriseai.backend.ai.service.AiChatService;
+import com.enterpriseai.backend.ai.service.AiStreamingChatService;
 import com.enterpriseai.backend.dto.AiChatTurnResponse;
 import com.enterpriseai.backend.dto.ChatMessageResponse;
 import com.enterpriseai.backend.dto.ConversationResponse;
@@ -41,14 +46,19 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Conversations", description = "Endpoints for managing conversations and chat messages")
 public class ConversationController {
 
+    private static final Logger log = LoggerFactory.getLogger(ConversationController.class);
+
     private final ConversationService conversationService;
     private final AiChatService aiChatService;
+    private final AiStreamingChatService aiStreamingChatService;
 
     public ConversationController(
             ConversationService conversationService,
-            AiChatService aiChatService) {
+            AiChatService aiChatService,
+            AiStreamingChatService aiStreamingChatService) {
         this.conversationService = conversationService;
         this.aiChatService = aiChatService;
+        this.aiStreamingChatService = aiStreamingChatService;
     }
 
     @PostMapping
@@ -129,6 +139,19 @@ public class ConversationController {
         AiChatTurnResponse response = aiChatService.chat(id, authentication.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, "Chat response generated successfully", response));
+    }
+
+    @PostMapping(value = "/{id}/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+            summary = "Stream chat message",
+            description = "Adds a user message and streams the assistant response using server-sent events.",
+            security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
+    public SseEmitter streamMessage(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateMessageRequest request,
+            @Parameter(hidden = true) Authentication authentication) {
+        log.info("SSE request received conversationId={} user={}", id, authentication.getName());
+        return aiStreamingChatService.stream(id, authentication.getName(), request);
     }
 
     @GetMapping("/{id}/messages")

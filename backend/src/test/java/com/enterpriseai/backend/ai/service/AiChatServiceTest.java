@@ -63,7 +63,7 @@ class AiChatServiceTest {
                 chatMessageRepository,
                 conversationMapper,
                 aiProvider,
-                new AiChatProperties(2));
+                new AiChatProperties(2, 120000));
     }
 
     @Test

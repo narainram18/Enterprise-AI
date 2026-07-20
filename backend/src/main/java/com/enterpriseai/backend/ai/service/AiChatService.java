@@ -56,8 +56,7 @@ public class AiChatService {
                 currentUserEmail,
                 request);
 
-        List<ChatMessage> contextMessages = loadRecentContext(conversationId);
-        AiChatRequest aiRequest = toAiChatRequest(contextMessages);
+        AiChatRequest aiRequest = buildContextRequest(conversationId);
 
         String assistantContent = generateResponse(aiRequest);
 
@@ -70,6 +69,11 @@ public class AiChatService {
         ChatMessageResponse assistantResponse = conversationMapper.toMessageResponse(assistantMessage);
 
         return new AiChatTurnResponse(userResponse, assistantResponse);
+    }
+
+    AiChatRequest buildContextRequest(Long conversationId) {
+        List<ChatMessage> contextMessages = loadRecentContext(conversationId);
+        return toAiChatRequest(contextMessages);
     }
 
     private List<ChatMessage> loadRecentContext(Long conversationId) {
