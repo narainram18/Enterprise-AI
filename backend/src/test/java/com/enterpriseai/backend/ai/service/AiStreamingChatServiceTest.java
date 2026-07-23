@@ -164,6 +164,39 @@ class AiStreamingChatServiceTest {
         verify(conversationService, never()).saveAssistantMessage(any(), any(), any());
     }
 
+    @Test
+    void shouldRegenerateExistingUserMessageWithoutSavingAnotherUserMessage() {
+        ChatMessage userMessage = message(7L, MessageRole.USER, "Retry this response");
+        ChatMessage assistantMessage = message(8L, MessageRole.ASSISTANT, "A regenerated response");
+        AiChatRequest aiRequest = new AiChatRequest(List.of(
+                new AiMessage(AiMessageRole.USER, userMessage.getContent())));
+
+        when(conversationService.getUserMessage(42L, 7L, "user@example.com"))
+                .thenReturn(userMessage);
+        when(aiChatService.buildContextRequest(42L)).thenReturn(aiRequest);
+        when(aiProvider.stream(eq(aiRequest), any(AiStreamHandler.class)))
+                .thenAnswer(invocation -> {
+                    AiStreamHandler handler = invocation.getArgument(1);
+                    handler.onToken("A regenerated response");
+                    return true;
+                });
+        when(conversationService.saveAssistantMessage(
+                42L,
+                "user@example.com",
+                "A regenerated response"))
+                .thenReturn(assistantMessage);
+        when(conversationMapper.toMessageResponse(assistantMessage)).thenReturn(response(assistantMessage));
+
+        streamingChatService.regenerate(42L, 7L, "user@example.com");
+
+        verify(conversationService).getUserMessage(42L, 7L, "user@example.com");
+        verify(conversationService, never()).saveUserMessage(any(), any(), any());
+        verify(conversationService).saveAssistantMessage(
+                42L,
+                "user@example.com",
+                "A regenerated response");
+    }
+
     private CreateMessageRequest request(String content) {
         CreateMessageRequest request = new CreateMessageRequest();
         request.setContent(content);

@@ -18,8 +18,8 @@ export function TextArea({ label, className = '', ...props }: TextareaHTMLAttrib
   return <label className="form-field">{label && <span>{label}</span>}<textarea {...props} className={className} /></label>
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return <div className="state state-error"><AlertCircle size={22} /><div><strong>Something went wrong</strong><p>{message}</p>{onRetry && <Button variant="secondary" onClick={onRetry}>Try again</Button>}</div></div>
+export function ErrorState({ message, onRetry, title = 'Something went wrong' }: { message: string; onRetry?: () => void; title?: string }) {
+  return <div className="state state-error"><AlertCircle size={22} /><div><strong>{title}</strong><p>{message}</p>{onRetry && <Button variant="secondary" onClick={onRetry}>Try again</Button>}</div></div>
 }
 
 export function EmptyState({ icon, title, description, action }: { icon: React.ReactNode; title: string; description: string; action?: React.ReactNode }) {

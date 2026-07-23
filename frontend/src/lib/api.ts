@@ -13,6 +13,25 @@ export type ChatMessageResponse = { id: number; role: MessageRole; content: stri
 export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string }
 export type ConversationResponse = ConversationSummary & { messages: ChatMessageResponse[] }
 export type AiChatTurnResponse = { userMessage: ChatMessageResponse; assistantMessage: ChatMessageResponse }
+export type DocumentType = 'PDF' | 'DOCX' | 'TXT'
+export type DocumentProcessingStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED'
+export type DocumentResponse = {
+  id: number
+  originalFileName: string
+  contentType: string
+  fileSize: number
+  documentType: DocumentType
+  processingStatus: DocumentProcessingStatus
+  extractionError: string | null
+  createdAt: string
+  updatedAt: string
+}
+export type DocumentTextResponse = {
+  id: number
+  originalFileName: string
+  processingStatus: DocumentProcessingStatus
+  text: string | null
+}
 
 export type StreamCallbacks = {
   onUserMessage: (message: ChatMessageResponse) => void
@@ -98,6 +117,52 @@ export const conversationsApi = {
   list: (params: { page?: number; size?: number } = {}) => api.get<ApiResponse<PageResponse<ConversationSummary>>>('/conversations', { params }),
   get: (conversationId: number) => api.get<ApiResponse<ConversationResponse>>(`/conversations/${conversationId}`),
   create: (title?: string) => api.post<ApiResponse<ConversationSummary>>('/conversations', { title }),
+  rename: (conversationId: number, title: string) => api.patch<ApiResponse<ConversationSummary>>(`/conversations/${conversationId}`, { title }),
+  delete: (conversationId: number) => api.delete<ApiResponse<null>>(`/conversations/${conversationId}`),
+}
+
+export const documentsApi = {
+  upload: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await authenticatedFetch('/documents', { method: 'POST', body: formData })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<DocumentResponse> }
+  },
+  list: async (params: { page?: number; size?: number } = {}) => {
+    const query = new URLSearchParams()
+    if (params.page !== undefined) query.set('page', params.page.toString())
+    if (params.size !== undefined) query.set('size', params.size.toString())
+    const qs = query.toString()
+    const response = await authenticatedFetch(`/documents${qs ? `?${qs}` : ''}`, { method: 'GET' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<PageResponse<DocumentResponse>> }
+  },
+  get: async (documentId: number) => {
+    const response = await authenticatedFetch(`/documents/${documentId}`, { method: 'GET' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<DocumentResponse> }
+  },
+  getText: async (documentId: number) => {
+    const response = await authenticatedFetch(`/documents/${documentId}/text`, { method: 'GET' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<DocumentTextResponse> }
+  },
+  delete: async (documentId: number) => {
+    const response = await authenticatedFetch(`/documents/${documentId}`, { method: 'DELETE' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<null> }
+  },
+}
+
+export function apiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data && typeof error.response.data === 'object'
+      ? (error.response.data as { message?: unknown }).message
+      : undefined
+    if (typeof message === 'string' && message.trim()) return message
+  }
+  return error instanceof Error && error.message.trim() ? error.message : fallback
 }
 
 function parseSseBlock(block: string): SseEvent | null {
@@ -161,18 +226,18 @@ function parseJsonPayload<T>(event: SseEvent): T {
   }
 }
 
-export async function streamConversationMessage(
-  conversationId: number,
-  content: string,
+async function consumeConversationStream(
+  path: string,
+  body: BodyInit | undefined,
   callbacks: StreamCallbacks,
   signal: AbortSignal,
 ) {
   const response = await authenticatedFetch(
-    `/conversations/${conversationId}/messages/stream`,
+    path,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify({ content }),
+      body,
       signal,
     },
   )
@@ -216,4 +281,32 @@ export async function streamConversationMessage(
   } finally {
     reader.releaseLock()
   }
+}
+
+export function streamConversationMessage(
+  conversationId: number,
+  content: string,
+  callbacks: StreamCallbacks,
+  signal: AbortSignal,
+) {
+  return consumeConversationStream(
+    `/conversations/${conversationId}/messages/stream`,
+    JSON.stringify({ content }),
+    callbacks,
+    signal,
+  )
+}
+
+export function regenerateConversationMessage(
+  conversationId: number,
+  messageId: number,
+  callbacks: StreamCallbacks,
+  signal: AbortSignal,
+) {
+  return consumeConversationStream(
+    `/conversations/${conversationId}/messages/${messageId}/regenerate`,
+    undefined,
+    callbacks,
+    signal,
+  )
 }

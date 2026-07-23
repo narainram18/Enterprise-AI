@@ -21,6 +21,8 @@
     <properties>
         <java.version>21</java.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        <pdfbox.version>2.0.30</pdfbox.version>
+        <poi.version>5.2.5</poi.version>
     </properties>
 
     <dependencies>
@@ -105,6 +107,18 @@
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- Document text extraction -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
         </dependency>
 
         <!-- Testing -->

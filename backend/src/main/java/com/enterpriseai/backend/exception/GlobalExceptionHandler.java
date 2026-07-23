@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.enterpriseai.backend.common.ErrorResponse;
 import com.enterpriseai.backend.ai.exception.AiGenerationException;
+import com.enterpriseai.backend.document.storage.FileStorageException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -72,6 +74,23 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                 .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(FileStorageException.class)
+    public ResponseEntity<ErrorResponse> handleDocumentStorageFailure(FileStorageException ex) {
+        log.error("Document infrastructure failure status=500 exception={}",
+                ex.getClass().getSimpleName(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Document storage is temporarily unavailable"));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceeded(
+            MaxUploadSizeExceededException ex) {
+        log.warn("Multipart upload rejected status=413 exception={}",
+                ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ErrorResponse("Uploaded file exceeds the maximum allowed size"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

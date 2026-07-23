@@ -152,6 +152,21 @@ public class ConversationService {
     }
 
     @Transactional(readOnly = true)
+    public ChatMessage getUserMessage(
+            Long conversationId,
+            Long messageId,
+            String currentUserEmail) {
+        User user = getUserByEmail(currentUserEmail);
+        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+
+        return chatMessageRepository.findByIdAndConversationIdAndRole(
+                        messageId,
+                        conversation.getId(),
+                        MessageRole.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("User message not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long conversationId, String currentUserEmail) {
         User user = getUserByEmail(currentUserEmail);
         Conversation conversation = getConversationByIdAndUser(conversationId, user);

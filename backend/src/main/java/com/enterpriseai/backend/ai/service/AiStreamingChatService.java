@@ -66,15 +66,39 @@ public class AiStreamingChatService {
                 currentUserEmail,
                 request);
         log.info("SSE USER message saved conversationId={} messageId={}", conversationId, userMessage.getId());
-        AiChatRequest aiRequest = aiChatService.buildContextRequest(conversationId);
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
+
+        return startStream(
+                conversationId,
+                currentUserEmail,
+                aiChatService.buildContextRequest(conversationId),
+                userResponse);
+    }
+
+    public SseEmitter regenerate(
+            Long conversationId,
+            Long messageId,
+            String currentUserEmail) {
+        conversationService.getUserMessage(conversationId, messageId, currentUserEmail);
+        return startStream(
+                conversationId,
+                currentUserEmail,
+                aiChatService.buildContextRequest(conversationId),
+                null);
+    }
+
+    private SseEmitter startStream(
+            Long conversationId,
+            String currentUserEmail,
+            AiChatRequest aiRequest,
+            ChatMessageResponse userResponse) {
 
         SseEmitter emitter = new SseEmitter(properties.streamTimeout());
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AtomicReference<Thread> workerThread = new AtomicReference<>();
         registerLifecycleCallbacks(emitter, cancelled, workerThread);
 
-        if (!sendEvent(emitter, USER_MESSAGE_EVENT, userResponse, cancelled)) {
+        if (userResponse != null && !sendEvent(emitter, USER_MESSAGE_EVENT, userResponse, cancelled)) {
             log.warn("SSE user_message event could not be sent conversationId={}", conversationId);
             return emitter;
         }

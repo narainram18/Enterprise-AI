@@ -154,6 +154,18 @@ public class ConversationController {
         return aiStreamingChatService.stream(id, authentication.getName(), request);
     }
 
+    @PostMapping(value = "/{id}/messages/{messageId}/regenerate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+            summary = "Regenerate chat response",
+            description = "Regenerates the assistant response for an existing owned user message without duplicating that message.",
+            security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
+    public SseEmitter regenerateMessage(
+            @PathVariable Long id,
+            @PathVariable Long messageId,
+            @Parameter(hidden = true) Authentication authentication) {
+        return aiStreamingChatService.regenerate(id, messageId, authentication.getName());
+    }
+
     @GetMapping("/{id}/messages")
     @Operation(
             summary = "Get messages",
