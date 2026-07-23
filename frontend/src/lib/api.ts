@@ -2,6 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 const ACCESS_TOKEN_KEY = 'orbit_access_token'
 const REFRESH_TOKEN_KEY = 'orbit_refresh_token'
+const REMEMBER_ME_KEY = 'orbit_remember_me'
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 export type ApiResponse<T> = { success: boolean; message: string; data: T; timestamp?: string }
@@ -59,13 +60,29 @@ export class SseParseError extends Error {
   }
 }
 
-function usesPersistentStorage() { return localStorage.getItem(REFRESH_TOKEN_KEY) !== null }
+function isRemembered(): boolean { return localStorage.getItem(REMEMBER_ME_KEY) === 'true' }
 
 export const tokenStore = {
   getAccess: () => localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY),
   getRefresh: () => localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY),
-  set: (tokens: AuthTokens, persistent = usesPersistentStorage()) => { const storage = persistent ? localStorage : sessionStorage; const otherStorage = persistent ? sessionStorage : localStorage; otherStorage.removeItem(ACCESS_TOKEN_KEY); otherStorage.removeItem(REFRESH_TOKEN_KEY); storage.setItem(ACCESS_TOKEN_KEY, tokens.token); storage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken) },
-  clear: () => { localStorage.removeItem(ACCESS_TOKEN_KEY); localStorage.removeItem(REFRESH_TOKEN_KEY); sessionStorage.removeItem(ACCESS_TOKEN_KEY); sessionStorage.removeItem(REFRESH_TOKEN_KEY) },
+  isRemembered,
+  set: (tokens: AuthTokens, persistent?: boolean) => {
+    const persist = persistent ?? isRemembered()
+    const storage = persist ? localStorage : sessionStorage
+    const otherStorage = persist ? sessionStorage : localStorage
+    otherStorage.removeItem(ACCESS_TOKEN_KEY)
+    otherStorage.removeItem(REFRESH_TOKEN_KEY)
+    storage.setItem(ACCESS_TOKEN_KEY, tokens.token)
+    storage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+    if (persistent !== undefined) { localStorage.setItem(REMEMBER_ME_KEY, String(persist)) }
+  },
+  clear: () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    localStorage.removeItem(REMEMBER_ME_KEY)
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY)
+  },
 }
 
 export const api = axios.create({ baseURL: API_URL, headers: { 'Content-Type': 'application/json' } })
