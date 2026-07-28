@@ -1,0 +1,94 @@
+package com.enterpriseai.backend.ai.retrieval.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.enterpriseai.backend.ai.config.RetrievalProperties;
+import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
+import com.enterpriseai.backend.entity.DocumentType;
+import com.enterpriseai.backend.entity.User;
+import com.enterpriseai.backend.repository.UserRepository;
+
+@ExtendWith(MockitoExtension.class)
+class ChatRetrievalServiceTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private SemanticSearchService semanticSearchService;
+
+    @Mock
+    private RetrievalContextBuilder contextBuilder;
+
+    private ChatRetrievalService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new ChatRetrievalService(
+                userRepository,
+                semanticSearchService,
+                contextBuilder,
+                new RetrievalProperties(true, 5, 0.5, 5, 3, 1000, 1000));
+    }
+
+    @Test
+    void returnsContextCitationsAndStatisticsForRetrievedChunks() {
+        User user = new User();
+        user.setId(7L);
+        RetrievedChunk chunk = new RetrievedChunk(
+                11L, 22L, 1, 0.91, "handbook.pdf", DocumentType.PDF, "Responsibilities", 7L);
+
+        when(userRepository.findByEmail("user@example.com")).thenReturn(java.util.Optional.of(user));
+        when(semanticSearchService.search("responsibilities", 7L)).thenReturn(List.of(chunk));
+        when(contextBuilder.select(List.of(chunk))).thenReturn(List.of(chunk));
+        when(contextBuilder.build(List.of(chunk))).thenReturn("Responsibilities");
+
+        var result = service.retrieve("responsibilities", "user@example.com");
+
+        assertEquals("Responsibilities", result.context());
+        assertEquals(1, result.citations().size());
+        assertEquals(11L, result.citations().getFirst().documentId());
+        assertEquals(1, result.statistics().retrievedChunks());
+        assertEquals(1, result.statistics().retrievedDocuments());
+        assertTrue(result.statistics().retrievalAttempted());
+    }
+
+    @Test
+    void retrievalFailureDoesNotEscapeToChat() {
+        User user = new User();
+        user.setId(7L);
+        when(userRepository.findByEmail("user@example.com")).thenReturn(java.util.Optional.of(user));
+        when(semanticSearchService.search("question", 7L))
+                .thenThrow(new RuntimeException("Qdrant unavailable"));
+
+        var result = service.retrieve("question", "user@example.com");
+
+        assertEquals("", result.context());
+        assertTrue(result.citations().isEmpty());
+        assertTrue(result.statistics().retrievalAttempted());
+    }
+
+    @Test
+    void disabledRetrievalDoesNotResolveUserOrSearch() {
+        service = new ChatRetrievalService(
+                userRepository,
+                semanticSearchService,
+                contextBuilder,
+                new RetrievalProperties(false, 5, 0.5, 5, 3, 1000, 1000));
+
+        var result = service.retrieve("question", "user@example.com");
+
+        assertTrue(result.context().isEmpty());
+        assertTrue(!result.statistics().retrievalAttempted());
+    }
+}

@@ -26,9 +26,13 @@ import com.enterpriseai.backend.repository.DocumentChunkRepository;
 import com.enterpriseai.backend.document.chunking.TextChunkingService;
 import com.enterpriseai.backend.entity.DocumentChunk;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class DocumentService {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
     private static final int MAX_ERROR_LENGTH = 500;
@@ -40,6 +44,7 @@ public class DocumentService {
     private final DocumentUploadProperties uploadProperties;
     private final TextChunkingService textChunkingService;
     private final DocumentChunkRepository documentChunkRepository;
+    private final DocumentEmbeddingService documentEmbeddingService;
 
     public DocumentService(
             UserRepository userRepository,
@@ -48,7 +53,8 @@ public class DocumentService {
             TextExtractionService textExtractionService,
             DocumentUploadProperties uploadProperties,
             TextChunkingService textChunkingService,
-            DocumentChunkRepository documentChunkRepository) {
+            DocumentChunkRepository documentChunkRepository,
+            DocumentEmbeddingService documentEmbeddingService) {
         this.userRepository = userRepository;
         this.documentRepository = documentRepository;
         this.fileStorageService = fileStorageService;
@@ -56,6 +62,7 @@ public class DocumentService {
         this.uploadProperties = uploadProperties;
         this.textChunkingService = textChunkingService;
         this.documentChunkRepository = documentChunkRepository;
+        this.documentEmbeddingService = documentEmbeddingService;
     }
 
     public DocumentResponse upload(String email, MultipartFile file) {
@@ -78,15 +85,27 @@ public class DocumentService {
             documentRepository.save(document);
 
             try (InputStream input = fileStorageService.open(storageKey)) {
+                log.info("Upload started for file: {}", document.getOriginalFileName());
                 String extractedText = textExtractionService.extract(type, input);
+                log.info("Text extracted: {} chars", extractedText.length());
                 document.setExtractedText(extractedText);
                 document.setExtractionError(null);
                 
                 List<DocumentChunk> chunks = textChunkingService.createChunks(document, extractedText);
-                documentChunkRepository.saveAll(chunks);
+                log.info("Chunks created: {}", chunks.size());
+                List<DocumentChunk> persistedChunks = documentChunkRepository.saveAll(chunks);
+                log.info("Chunks persisted");
+                
+                log.info("Embedding generation started");
+                documentEmbeddingService.embedAndStore(document, persistedChunks);
+                log.info("Vectors stored and READY");
                 
                 document.setProcessingStatus(DocumentProcessingStatus.READY);
             } catch (java.io.IOException | RuntimeException ex) {
+                log.error("Document processing failed", ex);
+                if (document.getId() != null) {
+                    documentChunkRepository.deleteByDocumentId(document.getId());
+                }
                 document.setExtractedText(null);
                 document.setExtractionError(safeError(ex));
                 document.setProcessingStatus(DocumentProcessingStatus.FAILED);
@@ -121,6 +140,7 @@ public class DocumentService {
 
     public void delete(String email, Long id) {
         KnowledgeDocument document = findOwned(email, id);
+        documentEmbeddingService.deleteVectors(document);
         fileStorageService.delete(document.getStorageKey());
         documentRepository.delete(document);
     }

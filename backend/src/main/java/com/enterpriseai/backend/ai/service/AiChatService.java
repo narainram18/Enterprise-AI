@@ -7,14 +7,18 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.enterpriseai.backend.ai.config.AiChatProperties;
+import com.enterpriseai.backend.ai.context.ChatContextExtension;
 import com.enterpriseai.backend.ai.exception.AiGenerationException;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.model.AiMessage;
 import com.enterpriseai.backend.ai.model.AiMessageRole;
 import com.enterpriseai.backend.ai.provider.AiProvider;
+import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
+import com.enterpriseai.backend.ai.retrieval.service.ChatRetrievalService;
 import com.enterpriseai.backend.dto.AiChatTurnResponse;
 import com.enterpriseai.backend.dto.ChatMessageResponse;
 import com.enterpriseai.backend.dto.CreateMessageRequest;
@@ -32,6 +36,8 @@ public class AiChatService {
     private final ConversationMapper conversationMapper;
     private final AiProvider aiProvider;
     private final AiChatProperties properties;
+    private final ChatContextExtension chatContextExtension;
+    private final ChatRetrievalService chatRetrievalService;
 
     public AiChatService(
             ConversationService conversationService,
@@ -39,11 +45,37 @@ public class AiChatService {
             ConversationMapper conversationMapper,
             AiProvider aiProvider,
             AiChatProperties properties) {
+        this(conversationService, chatMessageRepository, conversationMapper, aiProvider,
+                properties, (historyRequest, retrievalContext) -> historyRequest, null);
+    }
+
+    @Autowired
+    public AiChatService(
+            ConversationService conversationService,
+            ChatMessageRepository chatMessageRepository,
+            ConversationMapper conversationMapper,
+            AiProvider aiProvider,
+            AiChatProperties properties,
+            ChatContextExtension chatContextExtension,
+            ChatRetrievalService chatRetrievalService) {
         this.conversationService = conversationService;
         this.chatMessageRepository = chatMessageRepository;
         this.conversationMapper = conversationMapper;
         this.aiProvider = aiProvider;
         this.properties = properties;
+        this.chatContextExtension = chatContextExtension;
+        this.chatRetrievalService = chatRetrievalService;
+    }
+
+    public AiChatService(
+            ConversationService conversationService,
+            ChatMessageRepository chatMessageRepository,
+            ConversationMapper conversationMapper,
+            AiProvider aiProvider,
+            AiChatProperties properties,
+            ChatContextExtension chatContextExtension) {
+        this(conversationService, chatMessageRepository, conversationMapper, aiProvider,
+                properties, chatContextExtension, null);
     }
 
     public AiChatTurnResponse chat(
@@ -56,7 +88,8 @@ public class AiChatService {
                 currentUserEmail,
                 request);
 
-        AiChatRequest aiRequest = buildContextRequest(conversationId);
+        ChatRetrievalResult retrieval = retrieve(request.getContent(), currentUserEmail);
+        AiChatRequest aiRequest = buildContextRequest(conversationId, retrieval.context());
 
         String assistantContent = generateResponse(aiRequest);
 
@@ -68,12 +101,26 @@ public class AiChatService {
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
         ChatMessageResponse assistantResponse = conversationMapper.toMessageResponse(assistantMessage);
 
-        return new AiChatTurnResponse(userResponse, assistantResponse);
+        return new AiChatTurnResponse(
+                userResponse,
+                assistantResponse,
+                retrieval.statistics().retrievalAttempted() ? retrieval.citations() : null,
+                retrieval.statistics().retrievalAttempted() ? retrieval.statistics() : null);
     }
 
     AiChatRequest buildContextRequest(Long conversationId) {
         List<ChatMessage> contextMessages = loadRecentContext(conversationId);
         return toAiChatRequest(contextMessages);
+    }
+
+    AiChatRequest buildContextRequest(Long conversationId, String retrievalContext) {
+        return chatContextExtension.extend(buildContextRequest(conversationId), retrievalContext);
+    }
+
+    ChatRetrievalResult retrieve(String query, String currentUserEmail) {
+        return chatRetrievalService == null
+                ? ChatRetrievalResult.empty(false)
+                : chatRetrievalService.retrieve(query, currentUserEmail);
     }
 
     private List<ChatMessage> loadRecentContext(Long conversationId) {

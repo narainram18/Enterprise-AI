@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.slf4j.Logger;
@@ -17,6 +18,8 @@ import com.enterpriseai.backend.ai.exception.AiStreamCancelledException;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.provider.AiProvider;
 import com.enterpriseai.backend.ai.provider.AiStreamHandler;
+import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
+import com.enterpriseai.backend.ai.retrieval.service.ChatRetrievalService;
 import com.enterpriseai.backend.dto.AiStreamErrorResponse;
 import com.enterpriseai.backend.dto.ChatMessageResponse;
 import com.enterpriseai.backend.dto.CreateMessageRequest;
@@ -40,6 +43,25 @@ public class AiStreamingChatService {
     private final AiProvider aiProvider;
     private final AiChatProperties properties;
     private final Executor executor;
+    private final ChatRetrievalService chatRetrievalService;
+
+    @Autowired
+    public AiStreamingChatService(
+            ConversationService conversationService,
+            AiChatService aiChatService,
+            ConversationMapper conversationMapper,
+            AiProvider aiProvider,
+            AiChatProperties properties,
+            @Qualifier("aiStreamingExecutor") Executor executor,
+            ChatRetrievalService chatRetrievalService) {
+        this.conversationService = conversationService;
+        this.aiChatService = aiChatService;
+        this.conversationMapper = conversationMapper;
+        this.aiProvider = aiProvider;
+        this.properties = properties;
+        this.executor = executor;
+        this.chatRetrievalService = chatRetrievalService;
+    }
 
     public AiStreamingChatService(
             ConversationService conversationService,
@@ -48,12 +70,8 @@ public class AiStreamingChatService {
             AiProvider aiProvider,
             AiChatProperties properties,
             @Qualifier("aiStreamingExecutor") Executor executor) {
-        this.conversationService = conversationService;
-        this.aiChatService = aiChatService;
-        this.conversationMapper = conversationMapper;
-        this.aiProvider = aiProvider;
-        this.properties = properties;
-        this.executor = executor;
+        this(conversationService, aiChatService, conversationMapper, aiProvider,
+                properties, executor, null);
     }
 
     public SseEmitter stream(
@@ -67,31 +85,55 @@ public class AiStreamingChatService {
                 request);
         log.info("SSE USER message saved conversationId={} messageId={}", conversationId, userMessage.getId());
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
+        ChatRetrievalResult retrieval = retrieve(request.getContent(), currentUserEmail);
 
         return startStream(
                 conversationId,
                 currentUserEmail,
-                aiChatService.buildContextRequest(conversationId),
-                userResponse);
+                buildRequest(conversationId, retrieval),
+                userResponse,
+                retrieval);
     }
 
     public SseEmitter regenerate(
             Long conversationId,
             Long messageId,
             String currentUserEmail) {
-        conversationService.getUserMessage(conversationId, messageId, currentUserEmail);
+        ChatMessage userMessage = conversationService.getUserMessage(conversationId, messageId, currentUserEmail);
+        ChatRetrievalResult retrieval = retrieve(userMessage.getContent(), currentUserEmail);
         return startStream(
                 conversationId,
                 currentUserEmail,
-                aiChatService.buildContextRequest(conversationId),
-                null);
+                buildRequest(conversationId, retrieval),
+                null,
+                retrieval);
+    }
+
+    SseEmitter streamWithContext(
+            Long conversationId,
+            String currentUserEmail,
+            CreateMessageRequest request,
+            String retrievalContext) {
+        ChatMessage userMessage = conversationService.saveUserMessage(
+                conversationId,
+                currentUserEmail,
+                request);
+        ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
+        ChatRetrievalResult retrieval = ChatRetrievalResult.empty(false);
+        return startStream(
+                conversationId,
+                currentUserEmail,
+                aiChatService.buildContextRequest(conversationId, retrievalContext),
+                userResponse,
+                retrieval);
     }
 
     private SseEmitter startStream(
             Long conversationId,
             String currentUserEmail,
             AiChatRequest aiRequest,
-            ChatMessageResponse userResponse) {
+            ChatMessageResponse userResponse,
+            ChatRetrievalResult retrieval) {
 
         SseEmitter emitter = new SseEmitter(properties.streamTimeout());
         AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -109,7 +151,8 @@ public class AiStreamingChatService {
                 aiRequest,
                 emitter,
                 cancelled,
-                workerThread));
+                workerThread,
+                retrieval));
 
         return emitter;
     }
@@ -120,7 +163,8 @@ public class AiStreamingChatService {
             AiChatRequest request,
             SseEmitter emitter,
             AtomicBoolean cancelled,
-            AtomicReference<Thread> workerThread) {
+            AtomicReference<Thread> workerThread,
+            ChatRetrievalResult retrieval) {
 
         workerThread.set(Thread.currentThread());
         log.info("SSE Ollama streaming started conversationId={} thread={}", conversationId, Thread.currentThread().getName());
@@ -169,6 +213,10 @@ public class AiStreamingChatService {
                     assistantContent.toString());
             log.info("SSE ASSISTANT message saved conversationId={} messageId={} length={}", conversationId, assistantMessage.getId(), assistantContent.length());
             ChatMessageResponse assistantResponse = conversationMapper.toMessageResponse(assistantMessage);
+            if (retrieval.statistics().retrievalAttempted()) {
+                assistantResponse.setCitations(retrieval.citations());
+                assistantResponse.setRetrievalStatistics(retrieval.statistics());
+            }
 
             if (sendEvent(emitter, COMPLETE_EVENT, assistantResponse, cancelled)) {
                 log.info("SSE complete event emitted conversationId={}", conversationId);
@@ -185,6 +233,18 @@ public class AiStreamingChatService {
             log.error("SSE generation failed unexpectedly conversationId={}", conversationId, ex);
             sendErrorAndComplete(emitter, cancelled, "AI streaming failed");
         }
+    }
+
+    private ChatRetrievalResult retrieve(String query, String currentUserEmail) {
+        return chatRetrievalService == null
+                ? ChatRetrievalResult.empty(false)
+                : chatRetrievalService.retrieve(query, currentUserEmail);
+    }
+
+    private AiChatRequest buildRequest(Long conversationId, ChatRetrievalResult retrieval) {
+        return chatRetrievalService == null
+                ? aiChatService.buildContextRequest(conversationId)
+                : aiChatService.buildContextRequest(conversationId, retrieval.context());
     }
 
     private void registerLifecycleCallbacks(

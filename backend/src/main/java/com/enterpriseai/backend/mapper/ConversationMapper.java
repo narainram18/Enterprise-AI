@@ -17,6 +17,8 @@ import com.enterpriseai.backend.entity.Conversation;
         unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface ConversationMapper {
 
+    @Mapping(target = "citations", ignore = true)
+    @Mapping(target = "retrievalStatistics", ignore = true)
     ChatMessageResponse toMessageResponse(ChatMessage message);
 
     List<ChatMessageResponse> toMessageResponseList(List<ChatMessage> messages);

@@ -137,10 +137,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(
-            Exception ex) {
+            Exception ex, jakarta.servlet.http.HttpServletResponse response) {
 
         log.error("Unhandled request exception status=500 exception={}",
                 ex.getClass().getSimpleName());
+
+        if (response.isCommitted()) {
+            log.warn("Response already committed. Ignoring exception to prevent malformed JSON.");
+            return null;
+        }
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse("Something went wrong"));

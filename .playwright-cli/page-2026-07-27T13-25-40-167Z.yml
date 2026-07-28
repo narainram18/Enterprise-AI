@@ -1,0 +1,42 @@
+- main [ref=e3]:
+  - generic [ref=e4]:
+    - link "Enterprise AI home" [ref=e5] [cursor=pointer]:
+      - /url: /app
+      - generic [ref=e19]: Enterprise AI
+    - generic [ref=e20]:
+      - generic [ref=e21]: Enterprise intelligence
+      - heading "Your intelligent workspace for knowledge, research and execution." [level=1] [ref=e25]
+      - paragraph [ref=e26]: Bring your team’s thinking, documents, and AI workflows together in one secure workspace.
+      - list [ref=e27]:
+        - listitem [ref=e28]: Chat with enterprise AI
+        - listitem [ref=e31]: Search and understand documents
+        - listitem [ref=e34]: Automate work with specialized AI agents
+    - paragraph [ref=e37]: Secure by design. Built for enterprise teams.
+  - generic [ref=e41]:
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - paragraph [ref=e44]: Welcome back
+        - heading "Sign in to Enterprise AI" [level=2] [ref=e45]
+        - text: Continue where your work left off.
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - generic [ref=e48]: Work email
+          - textbox "Work email" [ref=e49]:
+            - /placeholder: you@company.com
+        - generic [ref=e50]:
+          - generic [ref=e51]: Password
+          - generic [ref=e52]:
+            - textbox "Password Show password" [ref=e53]:
+              - /placeholder: Enter your password
+            - button "Show password" [ref=e54] [cursor=pointer]
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - checkbox "Remember me" [ref=e60]
+            - text: Remember me
+          - button "Forgot password?" [ref=e61] [cursor=pointer]
+        - button "Sign in" [ref=e62] [cursor=pointer]
+      - paragraph [ref=e65]:
+        - text: New to Enterprise AI?
+        - link "Create an account" [ref=e66] [cursor=pointer]:
+          - /url: /register
+    - paragraph [ref=e67]: By continuing, you agree to our Terms of Service and Privacy Policy.
