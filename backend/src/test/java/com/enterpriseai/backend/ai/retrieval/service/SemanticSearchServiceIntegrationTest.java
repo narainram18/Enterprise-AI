@@ -35,7 +35,7 @@ class SemanticSearchServiceIntegrationTest {
         SemanticSearchService service = new SemanticSearchService(
                 new QueryEmbeddingService(provider),
                 vectorStore,
-                new RetrievalProperties(3, 0.75, 2, 1000));
+                new RetrievalProperties(true, 3, 0.75, 2, 2, 1000, 1000, true, true, "STRICT"));
 
         List<RetrievedChunk> results = service.search("benefits", 7L);
 

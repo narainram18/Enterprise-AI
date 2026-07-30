@@ -11,14 +11,17 @@ public record RetrievalProperties(
         int maximumRetrievedChunks,
         int maximumRetrievedDocuments,
         int maximumRetrievedCharacters,
-        long searchTimeout
+        long searchTimeout,
+        boolean contextCompressionEnabled,
+        boolean citationsEnabled,
+        String groundingMode
 ) {
     public RetrievalProperties(
             int topK,
             double minimumSimilarityScore,
             int maximumRetrievedChunks,
             long searchTimeout) {
-        this(true, topK, minimumSimilarityScore, maximumRetrievedChunks, 5, 12000, searchTimeout);
+        this(true, topK, minimumSimilarityScore, maximumRetrievedChunks, 5, 12000, searchTimeout, true, true, "STRICT");
     }
 
     @ConstructorBinding
@@ -29,7 +32,10 @@ public record RetrievalProperties(
             int maximumRetrievedChunks,
             int maximumRetrievedDocuments,
             int maximumRetrievedCharacters,
-            long searchTimeout) {
+            long searchTimeout,
+            boolean contextCompressionEnabled,
+            boolean citationsEnabled,
+            String groundingMode) {
         if (topK <= 0) {
             topK = 10;
         }
@@ -57,5 +63,8 @@ public record RetrievalProperties(
         this.maximumRetrievedDocuments = maximumRetrievedDocuments;
         this.maximumRetrievedCharacters = maximumRetrievedCharacters;
         this.searchTimeout = searchTimeout;
+        this.contextCompressionEnabled = contextCompressionEnabled;
+        this.citationsEnabled = citationsEnabled;
+        this.groundingMode = groundingMode == null || groundingMode.isBlank() ? "STRICT" : groundingMode;
     }
 }

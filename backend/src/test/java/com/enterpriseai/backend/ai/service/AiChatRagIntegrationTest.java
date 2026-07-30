@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import com.enterpriseai.backend.ai.config.AiChatProperties;
 import com.enterpriseai.backend.ai.context.DefaultChatContextExtension;
 import com.enterpriseai.backend.ai.context.RagPromptBuilder;
+import com.enterpriseai.backend.ai.context.TokenBudgetManager;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.provider.AiProvider;
 import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
@@ -53,8 +54,8 @@ class AiChatRagIntegrationTest {
                 chatMessageRepository,
                 conversationMapper,
                 aiProvider,
-                new AiChatProperties(10, 120000),
-                new DefaultChatContextExtension(new RagPromptBuilder()),
+                new AiChatProperties(10, 120000, 1000, 2000, 4000),
+                new DefaultChatContextExtension(new RagPromptBuilder(new TokenBudgetManager(), new AiChatProperties(10, 120000, 1000, 2000, 4000))),
                 retrievalService);
 
         CreateMessageRequest request = new CreateMessageRequest();
@@ -76,8 +77,8 @@ class AiChatRagIntegrationTest {
 
         ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
         verify(aiProvider).generate(requestCaptor.capture());
-        assertTrue(requestCaptor.getValue().messages().getFirst().content().contains("Retrieved Knowledge"));
-        assertTrue(requestCaptor.getValue().messages().getFirst().content().contains("Own onboarding"));
+        assertTrue(requestCaptor.getValue().messages().get(1).content().contains("Retrieved Knowledge"));
+        assertTrue(requestCaptor.getValue().messages().get(1).content().contains("Own onboarding"));
         assertEquals(1, result.citations().size());
         assertEquals(1, result.retrievalStatistics().retrievedChunks());
     }

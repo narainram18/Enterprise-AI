@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.enterpriseai.backend.ai.config.AiChatProperties;
 import com.enterpriseai.backend.ai.context.DefaultChatContextExtension;
 import com.enterpriseai.backend.ai.context.RagPromptBuilder;
+import com.enterpriseai.backend.ai.context.TokenBudgetManager;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.provider.AiProvider;
 import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
@@ -38,6 +39,8 @@ class AiStreamingRagIntegrationTest {
     @Mock
     private ConversationService conversationService;
     @Mock
+    private ChatMessageRepository chatMessageRepository;
+    @Mock
     private ConversationMapper conversationMapper;
     @Mock
     private AiProvider aiProvider;
@@ -48,18 +51,18 @@ class AiStreamingRagIntegrationTest {
     void streamsWithRetrievedContextWithoutChangingProviderStreamingContract() {
         AiChatService aiChatService = new AiChatService(
                 conversationService,
-                org.mockito.Mockito.mock(ChatMessageRepository.class),
+                chatMessageRepository,
                 conversationMapper,
                 aiProvider,
-                new AiChatProperties(10, 120000),
-                new DefaultChatContextExtension(new RagPromptBuilder()),
+                new AiChatProperties(10, 120000, 1000, 2000, 4000),
+                new DefaultChatContextExtension(new RagPromptBuilder(new TokenBudgetManager(), new AiChatProperties(10, 120000, 1000, 2000, 4000))),
                 retrievalService);
         AiStreamingChatService service = new AiStreamingChatService(
                 conversationService,
                 aiChatService,
                 conversationMapper,
                 aiProvider,
-                new AiChatProperties(10, 120000),
+                new AiChatProperties(10, 120000, 1000, 2000, 4000),
                 Runnable::run,
                 retrievalService);
 
@@ -70,6 +73,7 @@ class AiStreamingRagIntegrationTest {
         ChatMessageResponse userResponse = new ChatMessageResponse(1L, MessageRole.USER, request.getContent(), user.getCreatedAt());
         ChatMessageResponse assistantResponse = new ChatMessageResponse(2L, MessageRole.ASSISTANT, assistant.getContent(), assistant.getCreatedAt());
         when(conversationService.saveUserMessage(42L, "user@example.com", request)).thenReturn(user);
+        when(chatMessageRepository.findByConversationId(eq(42L), any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(user));
         when(conversationMapper.toMessageResponse(user)).thenReturn(userResponse);
         when(conversationMapper.toMessageResponse(assistant)).thenReturn(assistantResponse);
         when(retrievalService.retrieve(request.getContent(), "user@example.com"))
@@ -88,8 +92,9 @@ class AiStreamingRagIntegrationTest {
 
         ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
         verify(aiProvider).stream(requestCaptor.capture(), any());
-        assertTrue(requestCaptor.getValue().messages().getFirst().content().contains("internship.pdf"));
-        assertTrue(requestCaptor.getValue().messages().getFirst().content().contains("User Question"));
+        System.out.println("DEBUG STREAMING REQUEST:\n" + requestCaptor.getValue().messages().get(1).content());
+        assertTrue(requestCaptor.getValue().messages().get(1).content().contains("internship.pdf"));
+        assertTrue(requestCaptor.getValue().messages().get(1).content().contains("What are my internship responsibilities?"));
     }
 
     private ChatMessage message(Long id, MessageRole role, String content) {

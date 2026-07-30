@@ -11,7 +11,10 @@ import org.springframework.context.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.cache.annotation.EnableCaching;
+
 @SpringBootApplication
+@EnableCaching
 @ConfigurationPropertiesScan
 @EnableConfigurationProperties({OllamaProperties.class, AiChatProperties.class})
 public class BackendApplication {

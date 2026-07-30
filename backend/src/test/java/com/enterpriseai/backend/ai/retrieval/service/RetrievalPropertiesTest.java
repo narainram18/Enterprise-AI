@@ -10,7 +10,7 @@ class RetrievalPropertiesTest {
 
     @Test
     void invalidValuesFallBackToSafeDefaults() {
-        RetrievalProperties properties = new RetrievalProperties(0, 2.0, 0, 0);
+        RetrievalProperties properties = new RetrievalProperties(false, 0, 2.0, 0, 0, 0, 0, false, false, "");
 
         assertEquals(10, properties.topK());
         assertEquals(0.5, properties.minimumSimilarityScore());

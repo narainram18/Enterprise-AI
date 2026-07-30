@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.enterpriseai.backend.ai.exception.AiEmbeddingException;
 import com.enterpriseai.backend.ai.provider.EmbeddingProvider;
 
+import org.springframework.cache.annotation.Cacheable;
+
 @Service
 public class QueryEmbeddingService {
 
@@ -16,6 +18,7 @@ public class QueryEmbeddingService {
         this.embeddingProvider = embeddingProvider;
     }
 
+    @Cacheable("queryEmbeddings")
     public List<Double> embedQuery(String query) {
         if (query == null || query.isBlank()) {
             throw new IllegalArgumentException("Search query must not be null or blank");

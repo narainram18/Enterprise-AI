@@ -34,7 +34,7 @@ class SemanticSearchServiceTest {
         service = new SemanticSearchService(
                 queryEmbeddingService,
                 vectorStore,
-                new RetrievalProperties(3, 0.70, 2, 1000));
+                new RetrievalProperties(true, 3, 0.70, 2, 2, 1000, 1000, true, true, "STRICT"));
         when(provider.embed("benefits")).thenReturn(List.of(0.1, 0.2));
     }
 

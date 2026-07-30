@@ -38,7 +38,7 @@ class ChatRetrievalServiceTest {
                 userRepository,
                 semanticSearchService,
                 contextBuilder,
-                new RetrievalProperties(true, 5, 0.5, 5, 3, 1000, 1000));
+                new RetrievalProperties(true, 5, 0.5, 5, 3, 1000, 1000, true, true, "STRICT"));
     }
 
     @Test
@@ -84,7 +84,7 @@ class ChatRetrievalServiceTest {
                 userRepository,
                 semanticSearchService,
                 contextBuilder,
-                new RetrievalProperties(false, 5, 0.5, 5, 3, 1000, 1000));
+                new RetrievalProperties(false, 5, 0.5, 5, 3, 1000, 1000, true, true, "STRICT"));
 
         var result = service.retrieve("question", "user@example.com");
 

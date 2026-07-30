@@ -16,7 +16,7 @@ class RetrievalContextBuilderTest {
     @Test
     void sortsDeduplicatesAndTruncatesContext() {
         RetrievalContextBuilder builder = new RetrievalContextBuilder(
-                new RetrievalProperties(10, 0.0, 2, 1000));
+                new RetrievalProperties(true, 10, 0.0, 2, 2, 1000, 1000, true, true, "STRICT"));
 
         String context = builder.build(List.of(
                 chunk(12L, 4L, 1, 0.80, "second"),
@@ -26,8 +26,8 @@ class RetrievalContextBuilderTest {
 
         assertTrue(context.indexOf("first") < context.indexOf("second"));
         assertTrue(context.contains("[Document: handbook.txt]"));
-        assertTrue(context.contains("Section: 0"));
-        assertTrue(context.contains("Content:\nfirst"));
+        assertTrue(context.contains("--- Section 0 ---"));
+        assertTrue(context.contains("first"));
         assertTrue(!context.contains("duplicate"));
         assertTrue(!context.contains("truncated"));
     }
@@ -35,7 +35,7 @@ class RetrievalContextBuilderTest {
     @Test
     void emptyResultsProduceEmptyContext() {
         RetrievalContextBuilder builder = new RetrievalContextBuilder(
-                new RetrievalProperties(10, 0.0, 2, 1000));
+                new RetrievalProperties(true, 10, 0.0, 2, 2, 1000, 1000, true, true, "STRICT"));
 
         assertEquals("", builder.build(List.of()));
     }
@@ -43,7 +43,7 @@ class RetrievalContextBuilderTest {
     @Test
     void respectsDocumentAndCharacterLimits() {
         RetrievalContextBuilder builder = new RetrievalContextBuilder(
-                new RetrievalProperties(true, 10, 0.0, 10, 1, 80, 1000));
+                new RetrievalProperties(true, 10, 0.0, 10, 1, 80, 1000, true, true, "STRICT"));
 
         String context = builder.build(List.of(
                 chunk(1L, 10L, 0, 0.9, "first"),

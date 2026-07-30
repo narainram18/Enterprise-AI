@@ -28,6 +28,7 @@ import com.enterpriseai.backend.entity.DocumentChunk;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class DocumentService {
@@ -65,7 +66,9 @@ public class DocumentService {
         this.documentEmbeddingService = documentEmbeddingService;
     }
 
+    @CacheEvict(value = "retrievalResults", allEntries = true)
     public DocumentResponse upload(String email, MultipartFile file) {
+        log.info("CACHE EVICT - Invalidation triggered by upload");
         DocumentType type = validate(file);
         User user = resolveUser(email);
         String storageKey = fileStorageService.store(file);
@@ -138,7 +141,9 @@ public class DocumentService {
                 document.getProcessingStatus(), document.getExtractedText());
     }
 
+    @CacheEvict(value = "retrievalResults", allEntries = true)
     public void delete(String email, Long id) {
+        log.info("CACHE EVICT - Invalidation triggered by delete");
         KnowledgeDocument document = findOwned(email, id);
         documentEmbeddingService.deleteVectors(document);
         fileStorageService.delete(document.getStorageKey());

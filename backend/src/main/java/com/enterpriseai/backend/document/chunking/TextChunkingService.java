@@ -32,6 +32,8 @@ public class TextChunkingService {
         int textLength = text.length();
         int currentIndex = 0;
         int chunkIndex = 0;
+        
+        String currentHeading = "";
 
         while (currentIndex < textLength) {
             int endIndex = Math.min(currentIndex + chunkSize, textLength);
@@ -43,13 +45,27 @@ public class TextChunkingService {
                 }
             }
 
-            String chunkContent = text.substring(currentIndex, endIndex).trim();
-            if (!chunkContent.isEmpty()) {
+            String rawChunkContent = text.substring(currentIndex, endIndex).trim();
+            
+            String[] lines = rawChunkContent.split("\n");
+            for (String line : lines) {
+                line = line.trim();
+                if (!line.isEmpty() && line.length() < 100 && !line.endsWith(".") && !line.endsWith("?")) {
+                    currentHeading = line;
+                }
+            }
+
+            if (!rawChunkContent.isEmpty()) {
+                String finalContent = rawChunkContent;
+                if (!currentHeading.isEmpty() && !rawChunkContent.contains(currentHeading)) {
+                    finalContent = "[Context: " + currentHeading + "]\n" + rawChunkContent;
+                }
+                
                 DocumentChunk chunk = new DocumentChunk();
                 chunk.setDocument(document);
                 chunk.setChunkIndex(chunkIndex++);
-                chunk.setContent(chunkContent);
-                chunk.setCharacterCount(chunkContent.length());
+                chunk.setContent(finalContent);
+                chunk.setCharacterCount(finalContent.length());
                 chunks.add(chunk);
             }
 

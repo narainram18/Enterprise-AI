@@ -11,9 +11,15 @@ import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.model.AiMessage;
 import com.enterpriseai.backend.ai.model.AiMessageRole;
 
+import com.enterpriseai.backend.ai.context.TokenBudgetManager;
+import com.enterpriseai.backend.ai.config.AiChatProperties;
+
 class RagPromptBuilderTest {
 
-    private final RagPromptBuilder builder = new RagPromptBuilder();
+    private final RagPromptBuilder builder = new RagPromptBuilder(
+            new TokenBudgetManager(),
+            new AiChatProperties(10, 1000, 1000, 2000, 4000)
+    );
 
     @Test
     void addsProviderNeutralInstructionsAndRetrievedKnowledge() {
@@ -23,9 +29,10 @@ class RagPromptBuilderTest {
         AiChatRequest result = builder.build(history, "[Document: handbook.pdf]\n\nContent:\nOwn onboarding");
 
         assertEquals(AiMessageRole.SYSTEM, result.messages().getFirst().role());
-        assertTrue(result.messages().getFirst().content().contains("Retrieved Knowledge"));
-        assertTrue(result.messages().getFirst().content().contains("Own onboarding"));
-        assertEquals(history.messages(), result.messages().subList(1, result.messages().size()));
+        assertEquals(AiMessageRole.USER, result.messages().get(1).role());
+        assertTrue(result.messages().get(1).content().contains("Retrieved Knowledge"));
+        assertTrue(result.messages().get(1).content().contains("Own onboarding"));
+        assertTrue(result.messages().get(1).content().contains("What are my responsibilities?"));
     }
 
     @Test

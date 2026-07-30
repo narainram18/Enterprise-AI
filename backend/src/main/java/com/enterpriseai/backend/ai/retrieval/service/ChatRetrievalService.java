@@ -13,6 +13,8 @@ import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 import com.enterpriseai.backend.entity.User;
 import com.enterpriseai.backend.repository.UserRepository;
 
+import org.springframework.cache.annotation.Cacheable;
+
 @Service
 public class ChatRetrievalService {
 
@@ -34,7 +36,9 @@ public class ChatRetrievalService {
         this.properties = properties;
     }
 
+    @Cacheable(value = "retrievalResults", unless = "#result == null || #result.context().isEmpty()")
     public ChatRetrievalResult retrieve(String query, String currentUserEmail) {
+        log.info("CACHE MISS - Executing retrieval");
         if (!properties.enabled()) {
             return ChatRetrievalResult.empty(false);
         }
