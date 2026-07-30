@@ -61,9 +61,9 @@ public class OllamaAiProvider implements AiProvider {
                 false
         );
         
-        log.info("Ollama generate request started model={} messageCount={}", properties.model(), request.messages().size());
+        log.info("Prompt sent to Ollama:");
         for (AiMessage msg : request.messages()) {
-            log.info("Ollama Prompt Message -> Role: {}, Content: \n{}", msg.role(), msg.content());
+            log.info("{}:\n{}", msg.role(), msg.content());
         }
 
         try {
@@ -115,10 +115,9 @@ public class OllamaAiProvider implements AiProvider {
         );
 
         boolean[] completed = {false};
-        log.info("Ollama streaming request started model={} messageCount={}", properties.model(), request.messages().size());
-        
+        log.info("Prompt sent to Ollama:");
         for (AiMessage msg : request.messages()) {
-            log.info("Ollama Prompt Message -> Role: {}, Content: \n{}", msg.role(), msg.content());
+            log.info("{}:\n{}", msg.role(), msg.content());
         }
 
         try {

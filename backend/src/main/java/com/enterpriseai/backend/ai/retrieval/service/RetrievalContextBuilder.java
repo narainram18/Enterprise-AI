@@ -8,12 +8,16 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.enterpriseai.backend.ai.config.RetrievalProperties;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 
 @Component
 public class RetrievalContextBuilder {
+
+    private static final Logger log = LoggerFactory.getLogger(RetrievalContextBuilder.class);
 
     private final RetrievalProperties properties;
 
@@ -22,6 +26,7 @@ public class RetrievalContextBuilder {
     }
 
     public String build(List<RetrievedChunk> chunks) {
+        log.info("RetrievalContextBuilder: CALLED");
         List<RetrievedChunk> selected = select(chunks);
         if (selected.isEmpty()) {
             return "";
@@ -43,6 +48,7 @@ public class RetrievalContextBuilder {
             }
             context.append(formatted);
         }
+        log.info("Generated retrieval context:\n{}", context.toString());
         return context.toString();
     }
 
