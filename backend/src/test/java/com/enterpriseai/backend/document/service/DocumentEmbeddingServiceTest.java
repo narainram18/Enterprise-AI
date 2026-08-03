@@ -46,9 +46,13 @@ class DocumentEmbeddingServiceTest {
         user.setId(7L);
         user.setRole(Role.USER);
 
+        com.enterpriseai.backend.workspace.entity.Workspace workspace = new com.enterpriseai.backend.workspace.entity.Workspace();
+        workspace.setId(7L);
+
         document = new KnowledgeDocument();
         document.setId(4L);
-        document.setUser(user);
+        document.setCreatedBy(user);
+        document.setWorkspace(workspace);
         document.setOriginalFileName("policy.txt");
         document.setDocumentType(DocumentType.TXT);
 
@@ -68,14 +72,14 @@ class DocumentEmbeddingServiceTest {
                 List.of(11L, 12L),
                 List.of(List.of(1.0, 2.0), List.of(3.0, 4.0)),
                 List.of(
-                        Map.of("documentId", 4L, "chunkId", 11L, "ownerId", 7L,
+                        Map.of("documentId", 4L, "chunkId", 11L, "workspaceId", 7L, "createdById", 7L,
                                 "chunkIndex", 0, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "first"),
-                        Map.of("documentId", 4L, "chunkId", 12L, "ownerId", 7L,
+                        Map.of("documentId", 4L, "chunkId", 12L, "workspaceId", 7L, "createdById", 7L,
                                 "chunkIndex", 1, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "second")));
         verify(vectorStore).upsertBatch(
                 List.of(13L),
                 List.of(List.of(5.0, 6.0)),
-                List.of(Map.of("documentId", 4L, "chunkId", 13L, "ownerId", 7L,
+                List.of(Map.of("documentId", 4L, "chunkId", 13L, "workspaceId", 7L, "createdById", 7L,
                         "chunkIndex", 2, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "third")));
     }
 

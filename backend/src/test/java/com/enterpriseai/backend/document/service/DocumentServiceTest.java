@@ -50,8 +50,10 @@ class DocumentServiceTest {
     private TextChunkingService textChunkingService;
     private DocumentChunkRepository documentChunkRepository;
     private DocumentEmbeddingService documentEmbeddingService;
+    private com.enterpriseai.backend.workspace.repository.WorkspaceRepository workspaceRepository;
     private DocumentService documentService;
     private User user;
+    private com.enterpriseai.backend.workspace.entity.Workspace workspace;
 
     @BeforeEach
     void setUp() {
@@ -62,16 +64,25 @@ class DocumentServiceTest {
         textChunkingService = org.mockito.Mockito.mock(TextChunkingService.class);
         documentChunkRepository = org.mockito.Mockito.mock(DocumentChunkRepository.class);
         documentEmbeddingService = org.mockito.Mockito.mock(DocumentEmbeddingService.class);
+        workspaceRepository = org.mockito.Mockito.mock(com.enterpriseai.backend.workspace.repository.WorkspaceRepository.class);
         documentService = new DocumentService(
                 userRepository, documentRepository, fileStorageService, textExtractionService,
                 new DocumentUploadProperties(10_485_760), textChunkingService, documentChunkRepository,
-                documentEmbeddingService);
+                documentEmbeddingService, workspaceRepository);
 
         user = new User();
         user.setId(7L);
         user.setEmail("owner@example.com");
         user.setName("Owner");
         user.setRole(Role.USER);
+
+        workspace = new com.enterpriseai.backend.workspace.entity.Workspace();
+        workspace.setId(100L);
+
+        com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(100L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
+        
+        when(workspaceRepository.getReferenceById(100L)).thenReturn(workspace);
         when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(user));
         when(documentRepository.save(any(KnowledgeDocument.class)))
                 .thenAnswer(invocation -> {
@@ -184,7 +195,7 @@ class DocumentServiceTest {
     void deletesPhysicalFileAndOwnedDatabaseRecord() {
         KnowledgeDocument document = readyDocument();
         document.setStorageKey("trusted-key");
-        when(documentRepository.findByIdAndUserId(4L, 7L)).thenReturn(Optional.of(document));
+        when(documentRepository.findByIdAndWorkspaceId(4L, 100L)).thenReturn(Optional.of(document));
 
         documentService.delete("owner@example.com", 4L);
 
@@ -200,18 +211,18 @@ class DocumentServiceTest {
     @Test
     void listsOnlyDocumentsForResolvedUser() {
         KnowledgeDocument document = readyDocument();
-        when(documentRepository.findByUserIdOrderByCreatedAtDesc(7L, PageRequest.of(0, 10)))
+        when(documentRepository.findByWorkspaceIdOrderByCreatedAtDesc(100L, PageRequest.of(0, 10)))
                 .thenReturn(new PageImpl<>(List.of(document)));
 
         var page = documentService.list("owner@example.com", PageRequest.of(0, 10));
 
         assertEquals(1, page.getTotalElements());
-        verify(documentRepository).findByUserIdOrderByCreatedAtDesc(7L, PageRequest.of(0, 10));
+        verify(documentRepository).findByWorkspaceIdOrderByCreatedAtDesc(100L, PageRequest.of(0, 10));
     }
 
     @Test
     void rejectsCrossUserDocumentAccess() {
-        when(documentRepository.findByIdAndUserId(99L, 7L)).thenReturn(Optional.empty());
+        when(documentRepository.findByIdAndWorkspaceId(99L, 100L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
                 () -> documentService.get("owner@example.com", 99L));
@@ -220,7 +231,7 @@ class DocumentServiceTest {
     @Test
     void returnsTextForOwnedReadyDocument() {
         KnowledgeDocument document = readyDocument();
-        when(documentRepository.findByIdAndUserId(4L, 7L)).thenReturn(Optional.of(document));
+        when(documentRepository.findByIdAndWorkspaceId(4L, 100L)).thenReturn(Optional.of(document));
 
         DocumentTextResponse response = documentService.getText("owner@example.com", 4L);
 
@@ -244,7 +255,8 @@ class DocumentServiceTest {
     private KnowledgeDocument readyDocument() {
         KnowledgeDocument document = new KnowledgeDocument();
         document.setId(4L);
-        document.setUser(user);
+        document.setCreatedBy(user);
+        document.setWorkspace(workspace);
         document.setOriginalFileName("notes.txt");
         document.setDocumentType(DocumentType.TXT);
         document.setProcessingStatus(DocumentProcessingStatus.READY);

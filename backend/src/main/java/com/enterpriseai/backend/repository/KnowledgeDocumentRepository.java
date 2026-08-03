@@ -10,7 +10,7 @@ import com.enterpriseai.backend.entity.KnowledgeDocument;
 
 public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocument, Long> {
 
-    Page<KnowledgeDocument> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    Page<KnowledgeDocument> findByWorkspaceIdOrderByCreatedAtDesc(Long workspaceId, Pageable pageable);
 
-    Optional<KnowledgeDocument> findByIdAndUserId(Long id, Long userId);
+    Optional<KnowledgeDocument> findByIdAndWorkspaceId(Long id, Long workspaceId);
 }

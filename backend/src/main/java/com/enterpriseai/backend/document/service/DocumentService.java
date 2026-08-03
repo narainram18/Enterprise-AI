@@ -23,6 +23,10 @@ import com.enterpriseai.backend.exception.ResourceNotFoundException;
 import com.enterpriseai.backend.repository.KnowledgeDocumentRepository;
 import com.enterpriseai.backend.repository.UserRepository;
 import com.enterpriseai.backend.repository.DocumentChunkRepository;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
+import com.enterpriseai.backend.workspace.repository.WorkspaceRepository;
+import com.enterpriseai.backend.workspace.entity.Workspace;
 import com.enterpriseai.backend.document.chunking.TextChunkingService;
 import com.enterpriseai.backend.entity.DocumentChunk;
 import java.util.List;
@@ -46,6 +50,7 @@ public class DocumentService {
     private final TextChunkingService textChunkingService;
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentEmbeddingService documentEmbeddingService;
+    private final WorkspaceRepository workspaceRepository;
 
     public DocumentService(
             UserRepository userRepository,
@@ -55,7 +60,8 @@ public class DocumentService {
             DocumentUploadProperties uploadProperties,
             TextChunkingService textChunkingService,
             DocumentChunkRepository documentChunkRepository,
-            DocumentEmbeddingService documentEmbeddingService) {
+            DocumentEmbeddingService documentEmbeddingService,
+            WorkspaceRepository workspaceRepository) {
         this.userRepository = userRepository;
         this.documentRepository = documentRepository;
         this.fileStorageService = fileStorageService;
@@ -64,6 +70,7 @@ public class DocumentService {
         this.textChunkingService = textChunkingService;
         this.documentChunkRepository = documentChunkRepository;
         this.documentEmbeddingService = documentEmbeddingService;
+        this.workspaceRepository = workspaceRepository;
     }
 
     @CacheEvict(value = "retrievalResults", allEntries = true)
@@ -71,10 +78,14 @@ public class DocumentService {
         log.info("CACHE EVICT - Invalidation triggered by upload");
         DocumentType type = validate(file);
         User user = resolveUser(email);
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
+        
         String storageKey = fileStorageService.store(file);
 
         KnowledgeDocument document = new KnowledgeDocument();
-        document.setUser(user);
+        document.setCreatedBy(user);
+        document.setWorkspace(workspace);
         document.setOriginalFileName(originalName(file));
         document.setStorageKey(storageKey);
         document.setContentType(contentType(file));
@@ -122,8 +133,8 @@ public class DocumentService {
     }
 
     public Page<DocumentResponse> list(String email, Pageable pageable) {
-        User user = resolveUser(email);
-        return documentRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable)
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        return documentRepository.findByWorkspaceIdOrderByCreatedAtDesc(context.getWorkspaceId(), pageable)
                 .map(this::toResponse);
     }
 
@@ -191,9 +202,9 @@ public class DocumentService {
     }
 
     private KnowledgeDocument findOwned(String email, Long id) {
-        User user = resolveUser(email);
-        return documentRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        return documentRepository.findByIdAndWorkspaceId(id, context.getWorkspaceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found in workspace"));
     }
 
     private User resolveUser(String email) {

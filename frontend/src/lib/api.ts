@@ -14,6 +14,7 @@ export type ChatMessageResponse = { id: number; role: MessageRole; content: stri
 export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string }
 export type ConversationResponse = ConversationSummary & { messages: ChatMessageResponse[] }
 export type AiChatTurnResponse = { userMessage: ChatMessageResponse; assistantMessage: ChatMessageResponse }
+export type WorkspaceResponse = { id: number; name: string; createdAt: string; updatedAt: string }
 export type DocumentType = 'PDF' | 'DOCX' | 'TXT'
 export type DocumentProcessingStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED'
 export type DocumentResponse = {
@@ -61,6 +62,11 @@ export class SseParseError extends Error {
 }
 
 function isRemembered(): boolean { return localStorage.getItem(REMEMBER_ME_KEY) === 'true' }
+export const workspaceStore = {
+  get: () => localStorage.getItem('orbit_workspace_id'),
+  set: (id: number) => localStorage.setItem('orbit_workspace_id', id.toString()),
+  clear: () => localStorage.removeItem('orbit_workspace_id')
+}
 
 export const tokenStore = {
   getAccess: () => localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY),
@@ -104,6 +110,10 @@ async function refreshAccessToken() {
 api.interceptors.request.use((config) => {
   const token = tokenStore.getAccess()
   if (token) config.headers.Authorization = `Bearer ${token}`
+  
+  const workspaceId = workspaceStore.get()
+  if (workspaceId) config.headers['X-Workspace-Id'] = workspaceId
+  
   return config
 })
 
@@ -124,6 +134,14 @@ export const authApi = {
   refresh: () => refreshClient.post<ApiResponse<AuthTokens>>('/auth/refresh', { refreshToken: tokenStore.getRefresh() }),
   logout: () => refreshClient.post<ApiResponse<null>>('/auth/logout', { refreshToken: tokenStore.getRefresh() }),
   me: () => api.get<ApiResponse<UserProfile>>('/users/me'),
+}
+
+export const workspacesApi = {
+  list: () => api.get<ApiResponse<WorkspaceResponse[]>>('/workspaces'),
+  get: (id: number) => api.get<ApiResponse<WorkspaceResponse>>(`/workspaces/${id}`),
+  create: (name: string) => api.post<ApiResponse<WorkspaceResponse>>('/workspaces', { name }),
+  rename: (id: number, name: string) => api.put<ApiResponse<WorkspaceResponse>>(`/workspaces/${id}`, { name }),
+  delete: (id: number) => api.delete<ApiResponse<null>>(`/workspaces/${id}`)
 }
 
 export const usersApi = {
@@ -223,6 +241,8 @@ async function authenticatedFetch(path: string, init: RequestInit, retry = true)
   const headers = new Headers(init.headers)
   const accessToken = tokenStore.getAccess()
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  const workspaceId = workspaceStore.get()
+  if (workspaceId) headers.set('X-Workspace-Id', workspaceId)
 
   let response = await fetch(`${API_URL.replace(/\/$/, '')}${path}`, { ...init, headers })
   if (response.status === 401 && retry && tokenStore.getRefresh()) {

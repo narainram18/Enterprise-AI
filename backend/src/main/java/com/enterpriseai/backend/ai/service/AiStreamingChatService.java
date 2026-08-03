@@ -26,6 +26,8 @@ import com.enterpriseai.backend.dto.CreateMessageRequest;
 import com.enterpriseai.backend.entity.ChatMessage;
 import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.service.ConversationService;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
 
 @Service
 public class AiStreamingChatService {
@@ -145,14 +147,27 @@ public class AiStreamingChatService {
             return emitter;
         }
 
-        executor.execute(() -> generateAndStream(
-                conversationId,
-                currentUserEmail,
-                aiRequest,
-                emitter,
-                cancelled,
-                workerThread,
-                retrieval));
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+
+        executor.execute(() -> {
+            if (context != null) {
+                WorkspaceContextHolder.setContext(context);
+            }
+            try {
+                generateAndStream(
+                        conversationId,
+                        currentUserEmail,
+                        aiRequest,
+                        emitter,
+                        cancelled,
+                        workerThread,
+                        retrieval);
+            } finally {
+                if (context != null) {
+                    WorkspaceContextHolder.clearContext();
+                }
+            }
+        });
 
         return emitter;
     }

@@ -23,6 +23,10 @@ import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.repository.ChatMessageRepository;
 import com.enterpriseai.backend.repository.ConversationRepository;
 import com.enterpriseai.backend.repository.UserRepository;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
+import com.enterpriseai.backend.workspace.repository.WorkspaceRepository;
+import com.enterpriseai.backend.workspace.entity.Workspace;
 
 @Service
 public class ConversationService {
@@ -31,16 +35,19 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final ConversationMapper conversationMapper;
+    private final WorkspaceRepository workspaceRepository;
 
     public ConversationService(
             UserRepository userRepository,
             ConversationRepository conversationRepository,
             ChatMessageRepository chatMessageRepository,
-            ConversationMapper conversationMapper) {
+            ConversationMapper conversationMapper,
+            WorkspaceRepository workspaceRepository) {
         this.userRepository = userRepository;
         this.conversationRepository = conversationRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.conversationMapper = conversationMapper;
+        this.workspaceRepository = workspaceRepository;
     }
 
     private User getUserByEmail(String email) {
@@ -48,14 +55,17 @@ public class ConversationService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-    private Conversation getConversationByIdAndUser(Long conversationId, User user) {
-        return conversationRepository.findByIdAndUserId(conversationId, user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
+    private Conversation getConversationByIdAndWorkspace(Long conversationId) {
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        return conversationRepository.findByIdAndWorkspaceId(conversationId, context.getWorkspaceId())
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found in workspace"));
     }
 
     @Transactional
     public ConversationSummaryResponse createConversation(String currentUserEmail, CreateConversationRequest request) {
         User user = getUserByEmail(currentUserEmail);
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
 
         String title = request.getTitle();
         if (title == null || title.isBlank()) {
@@ -63,7 +73,8 @@ public class ConversationService {
         }
 
         Conversation conversation = new Conversation();
-        conversation.setUser(user);
+        conversation.setCreatedBy(user);
+        conversation.setWorkspace(workspace);
         conversation.setTitle(title);
         
         conversation = conversationRepository.save(conversation);
@@ -72,15 +83,14 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public Page<ConversationSummaryResponse> getConversations(String currentUserEmail, Pageable pageable) {
-        User user = getUserByEmail(currentUserEmail);
-        return conversationRepository.findByUserIdOrderByUpdatedAtDesc(user.getId(), pageable)
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        return conversationRepository.findByWorkspaceIdOrderByUpdatedAtDesc(context.getWorkspaceId(), pageable)
                 .map(conversationMapper::toSummaryResponse);
     }
 
     @Transactional(readOnly = true)
     public ConversationResponse getConversation(Long conversationId, String currentUserEmail) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
         List<ChatMessage> messages = chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
         List<ChatMessageResponse> messageResponses = conversationMapper.toMessageResponseList(messages);
@@ -90,8 +100,7 @@ public class ConversationService {
 
     @Transactional
     public ConversationSummaryResponse renameConversation(Long conversationId, String currentUserEmail, RenameConversationRequest request) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
         conversation.setTitle(request.getTitle());
         conversation = conversationRepository.save(conversation);
@@ -101,8 +110,7 @@ public class ConversationService {
 
     @Transactional
     public void deleteConversation(Long conversationId, String currentUserEmail) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
         // Chat messages are automatically deleted via the database ON DELETE CASCADE constraint.
         conversationRepository.delete(conversation);
@@ -116,8 +124,7 @@ public class ConversationService {
 
     @Transactional
     public ChatMessage saveUserMessage(Long conversationId, String currentUserEmail, CreateMessageRequest request) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
         ChatMessage message = new ChatMessage();
         message.setConversation(conversation);
@@ -135,8 +142,7 @@ public class ConversationService {
 
     @Transactional
     public ChatMessage saveAssistantMessage(Long conversationId, String currentUserEmail, String content) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
 
         ChatMessage message = new ChatMessage();
         message.setConversation(conversation);
@@ -156,8 +162,7 @@ public class ConversationService {
             Long conversationId,
             Long messageId,
             String currentUserEmail) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
 
         return chatMessageRepository.findByIdAndConversationIdAndRole(
                         messageId,
@@ -168,8 +173,7 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getMessages(Long conversationId, String currentUserEmail) {
-        User user = getUserByEmail(currentUserEmail);
-        Conversation conversation = getConversationByIdAndUser(conversationId, user);
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
         List<ChatMessage> messages = chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
         return conversationMapper.toMessageResponseList(messages);

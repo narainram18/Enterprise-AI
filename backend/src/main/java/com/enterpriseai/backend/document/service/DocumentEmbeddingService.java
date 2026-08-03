@@ -98,7 +98,8 @@ public class DocumentEmbeddingService {
         return Map.of(
                 "documentId", document.getId(),
                 "chunkId", chunk.getId(),
-                "ownerId", document.getUser().getId(),
+                "workspaceId", document.getWorkspace().getId(),
+                "createdById", document.getCreatedBy().getId(),
                 "chunkIndex", chunk.getChunkIndex(),
                 "originalFileName", document.getOriginalFileName(),
                 "documentType", document.getDocumentType().name(),

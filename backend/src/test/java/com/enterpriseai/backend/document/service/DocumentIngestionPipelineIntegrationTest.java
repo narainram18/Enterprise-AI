@@ -15,6 +15,9 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
+import com.enterpriseai.backend.workspace.entity.WorkspaceRole;
 
 import com.enterpriseai.backend.ai.config.EmbeddingProperties;
 import com.enterpriseai.backend.ai.provider.EmbeddingProvider;
@@ -42,6 +45,7 @@ class DocumentIngestionPipelineIntegrationTest {
     private FileStorageService fileStorageService;
     private DocumentChunkRepository documentChunkRepository;
     private InMemoryVectorStore vectorStore;
+    private com.enterpriseai.backend.workspace.repository.WorkspaceRepository workspaceRepository;
     private DocumentService documentService;
 
     @BeforeEach
@@ -50,12 +54,18 @@ class DocumentIngestionPipelineIntegrationTest {
         documentRepository = org.mockito.Mockito.mock(KnowledgeDocumentRepository.class);
         fileStorageService = org.mockito.Mockito.mock(FileStorageService.class);
         documentChunkRepository = org.mockito.Mockito.mock(DocumentChunkRepository.class);
+        workspaceRepository = org.mockito.Mockito.mock(com.enterpriseai.backend.workspace.repository.WorkspaceRepository.class);
 
         User user = new User();
         user.setId(7L);
         user.setEmail("owner@example.com");
         user.setRole(Role.USER);
         when(userRepository.findByEmail("owner@example.com")).thenReturn(java.util.Optional.of(user));
+
+        com.enterpriseai.backend.workspace.entity.Workspace workspace = new com.enterpriseai.backend.workspace.entity.Workspace();
+        workspace.setId(7L);
+        when(workspaceRepository.getReferenceById(7L)).thenReturn(workspace);
+        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER));
 
         when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> {
             KnowledgeDocument document = invocation.getArgument(0);
@@ -107,7 +117,8 @@ class DocumentIngestionPipelineIntegrationTest {
                 new DocumentUploadProperties(10_485_760),
                 new TextChunkingService(chunkingProperties),
                 documentChunkRepository,
-                embeddingService);
+                embeddingService,
+                workspaceRepository);
     }
 
     @Test

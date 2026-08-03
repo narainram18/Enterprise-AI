@@ -36,9 +36,9 @@ public class SemanticSearchService {
         this.properties = properties;
     }
 
-    public List<RetrievedChunk> search(String query, Long ownerId) {
-        if (ownerId == null) {
-            throw new IllegalArgumentException("Owner ID must not be null");
+    public List<RetrievedChunk> search(String query, Long workspaceId) {
+        if (workspaceId == null) {
+            throw new IllegalArgumentException("Workspace ID must not be null");
         }
 
         log.info("QueryEmbeddingService: CALLED (query: '{}')", query);
@@ -56,7 +56,7 @@ public class SemanticSearchService {
         List<RetrievedChunk> chunks = results.stream()
                 .filter(java.util.Objects::nonNull)
                 .filter(result -> result.score() >= properties.minimumSimilarityScore())
-                .filter(result -> ownerId.equals(longValue(result.metadata(), "ownerId")))
+                .filter(result -> workspaceId.equals(longValue(result.metadata(), "workspaceId")))
                 .map(this::toRetrievedChunk)
                 .filter(java.util.Objects::nonNull)
                 .limit(properties.maximumRetrievedChunks())
@@ -95,14 +95,14 @@ public class SemanticSearchService {
     private RetrievedChunk toRetrievedChunk(VectorSearchResult result) {
         Map<String, Object> metadata = result.metadata();
         Long documentId = longValue(metadata, "documentId");
-        Long ownerId = longValue(metadata, "ownerId");
+        Long workspaceId = longValue(metadata, "workspaceId");
         Long chunkId = result.chunkId() != null ? result.chunkId() : longValue(metadata, "chunkId");
         Long chunkIndex = longValue(metadata, "chunkIndex");
         String fileName = stringValue(metadata, "originalFileName");
         String documentTypeValue = stringValue(metadata, "documentType");
         String chunkText = stringValue(metadata, "chunkText");
 
-        if (documentId == null || ownerId == null || chunkId == null || chunkIndex == null
+        if (documentId == null || workspaceId == null || chunkId == null || chunkIndex == null
                 || fileName == null || documentTypeValue == null || chunkText == null) {
             return null;
         }
@@ -116,7 +116,7 @@ public class SemanticSearchService {
                     fileName,
                     DocumentType.valueOf(documentTypeValue),
                     chunkText,
-                    ownerId);
+                    workspaceId);
         } catch (IllegalArgumentException ex) {
             return null;
         }

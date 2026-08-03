@@ -10,7 +10,7 @@ import com.enterpriseai.backend.entity.Conversation;
 
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
-    Page<Conversation> findByUserIdOrderByUpdatedAtDesc(Long userId, Pageable pageable);
+    Page<Conversation> findByWorkspaceIdOrderByUpdatedAtDesc(Long workspaceId, Pageable pageable);
 
-    Optional<Conversation> findByIdAndUserId(Long id, Long userId);
+    Optional<Conversation> findByIdAndWorkspaceId(Long id, Long workspaceId);
 }

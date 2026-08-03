@@ -23,8 +23,12 @@ public class Conversation extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private com.enterpriseai.backend.workspace.entity.Workspace workspace;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id", nullable = false)
+    private User createdBy;
 
     @Column(nullable = false)
     private String title;

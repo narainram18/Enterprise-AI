@@ -51,14 +51,14 @@ class SemanticSearchServiceTest {
 
         assertEquals(2, results.size());
         assertEquals(List.of(11L, 14L), results.stream().map(RetrievedChunk::chunkId).toList());
-        assertTrue(results.stream().allMatch(result -> result.ownerId().equals(7L)));
+        assertTrue(results.stream().allMatch(result -> result.workspaceId().equals(7L)));
         verify(vectorStore).search(List.of(0.1, 0.2), 3);
     }
 
     @Test
     void skipsResultsWithMissingOrInvalidMetadata() {
         when(vectorStore.search(anyList(), eq(3))).thenReturn(List.of(
-                new VectorSearchResult(20L, 0.99, Map.of("ownerId", 7L)),
+                new VectorSearchResult(20L, 0.99, Map.of("workspaceId", 7L)),
                 result(21L, 0.98, 7L, 4L, 0, "valid")));
 
         List<RetrievedChunk> results = service.search("benefits", 7L);
@@ -67,12 +67,12 @@ class SemanticSearchServiceTest {
     }
 
     private VectorSearchResult result(
-            Long chunkId, double score, Long ownerId, Long documentId, int chunkIndex, String content) {
+            Long chunkId, double score, Long workspaceId, Long documentId, int chunkIndex, String content) {
         return new VectorSearchResult(
                 chunkId,
                 score,
                 Map.of(
-                        "ownerId", ownerId,
+                        "workspaceId", workspaceId,
                         "documentId", documentId,
                         "chunkId", chunkId,
                         "chunkIndex", chunkIndex,

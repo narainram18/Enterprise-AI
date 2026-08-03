@@ -10,6 +10,6 @@ public record RetrievedChunk(
         String documentFileName,
         DocumentType documentType,
         String chunkText,
-        Long ownerId
+        Long workspaceId
 ) {
 }

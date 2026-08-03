@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { authApi, tokenStore, type UserProfile } from '../lib/api'
+import { authApi, tokenStore, workspacesApi, workspaceStore, type UserProfile } from '../lib/api'
 
 /** Inactivity timeout in milliseconds. Default: 30 minutes. */
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try { if (tokenStore.getRefresh()) await authApi.logout() } catch { /* best-effort server revocation */ }
     tokenStore.clear()
+    workspaceStore.clear()
     sessionStorage.removeItem(LAST_ACTIVITY_KEY)
     setUser(null)
   }, [])
@@ -44,8 +45,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!tokenStore.getAccess()) { setIsLoading(false); return }
     authApi.me()
-      .then(({ data }) => { setUser(data.data); stampActivity() })
-      .catch(() => { tokenStore.clear(); setUser(null) })
+      .then(async ({ data }) => {
+        if (!workspaceStore.get()) {
+          try {
+            const workspacesResponse = await workspacesApi.list()
+            if (workspacesResponse.data.data.length > 0) {
+              workspaceStore.set(workspacesResponse.data.data[0].id)
+            }
+          } catch { /* ignore if workspaces fetch fails on bootstrap */ }
+        }
+        setUser(data.data); stampActivity() 
+      })
+      .catch(() => { tokenStore.clear(); workspaceStore.clear(); setUser(null) })
       .finally(() => setIsLoading(false))
   }, [])
 
@@ -88,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Another tab cleared the remember-me flag (i.e. called tokenStore.clear())
       if (event.key === 'orbit_remember_me' && event.newValue === null) {
         tokenStore.clear()
+        workspaceStore.clear()
         sessionStorage.removeItem(LAST_ACTIVITY_KEY)
         setUser(null)
       }
@@ -101,6 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data } = await authApi.login(email, password)
     tokenStore.set(data.data, remember)
     const profile = await authApi.me()
+    try {
+      const workspacesResponse = await workspacesApi.list()
+      if (workspacesResponse.data.data.length > 0) {
+        workspaceStore.set(workspacesResponse.data.data[0].id)
+      }
+    } catch { /* ignore if workspaces fetch fails */ }
     setUser(profile.data.data)
     stampActivity()
   }

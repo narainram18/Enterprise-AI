@@ -2,6 +2,8 @@ package com.enterpriseai.backend.ai.retrieval.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -11,8 +13,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
+import com.enterpriseai.backend.workspace.entity.WorkspaceRole;
 
 import com.enterpriseai.backend.ai.config.RetrievalProperties;
+import com.enterpriseai.backend.ai.retrieval.hybrid.RetrievalPipeline;
+import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 import com.enterpriseai.backend.entity.DocumentType;
 import com.enterpriseai.backend.entity.User;
@@ -25,7 +32,7 @@ class ChatRetrievalServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private SemanticSearchService semanticSearchService;
+    private RetrievalPipeline retrievalPipeline;
 
     @Mock
     private RetrievalContextBuilder contextBuilder;
@@ -36,20 +43,18 @@ class ChatRetrievalServiceTest {
     void setUp() {
         service = new ChatRetrievalService(
                 userRepository,
-                semanticSearchService,
+                retrievalPipeline,
                 contextBuilder,
                 new RetrievalProperties(true, 5, 0.5, 5, 3, 1000, 1000, true, true, "STRICT"));
+        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER));
     }
 
     @Test
     void returnsContextCitationsAndStatisticsForRetrievedChunks() {
-        User user = new User();
-        user.setId(7L);
         RetrievedChunk chunk = new RetrievedChunk(
                 11L, 22L, 1, 0.91, "handbook.pdf", DocumentType.PDF, "Responsibilities", 7L);
 
-        when(userRepository.findByEmail("user@example.com")).thenReturn(java.util.Optional.of(user));
-        when(semanticSearchService.search("responsibilities", 7L)).thenReturn(List.of(chunk));
+        when(retrievalPipeline.retrieveAndRank("responsibilities", 7L)).thenReturn(List.of(chunk));
         when(contextBuilder.select(List.of(chunk))).thenReturn(List.of(chunk));
         when(contextBuilder.build(List.of(chunk))).thenReturn("Responsibilities");
 
@@ -65,10 +70,7 @@ class ChatRetrievalServiceTest {
 
     @Test
     void retrievalFailureDoesNotEscapeToChat() {
-        User user = new User();
-        user.setId(7L);
-        when(userRepository.findByEmail("user@example.com")).thenReturn(java.util.Optional.of(user));
-        when(semanticSearchService.search("question", 7L))
+        when(retrievalPipeline.retrieveAndRank(anyString(), anyLong()))
                 .thenThrow(new RuntimeException("Qdrant unavailable"));
 
         var result = service.retrieve("question", "user@example.com");
@@ -82,7 +84,7 @@ class ChatRetrievalServiceTest {
     void disabledRetrievalDoesNotResolveUserOrSearch() {
         service = new ChatRetrievalService(
                 userRepository,
-                semanticSearchService,
+                retrievalPipeline,
                 contextBuilder,
                 new RetrievalProperties(false, 5, 0.5, 5, 3, 1000, 1000, true, true, "STRICT"));
 

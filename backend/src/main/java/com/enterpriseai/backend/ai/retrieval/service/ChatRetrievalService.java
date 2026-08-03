@@ -8,10 +8,13 @@ import org.springframework.stereotype.Service;
 import com.enterpriseai.backend.ai.config.RetrievalProperties;
 import com.enterpriseai.backend.ai.retrieval.model.ChatRetrievalResult;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievalCitation;
+import com.enterpriseai.backend.ai.retrieval.hybrid.RetrievalPipeline;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievalStatistics;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 import com.enterpriseai.backend.entity.User;
 import com.enterpriseai.backend.repository.UserRepository;
+import com.enterpriseai.backend.workspace.context.WorkspaceContext;
+import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
 
 import org.springframework.cache.annotation.Cacheable;
 
@@ -21,17 +24,17 @@ public class ChatRetrievalService {
     private static final Logger log = Logger.getLogger(ChatRetrievalService.class.getName());
 
     private final UserRepository userRepository;
-    private final SemanticSearchService semanticSearchService;
+    private final RetrievalPipeline retrievalPipeline;
     private final RetrievalContextBuilder contextBuilder;
     private final RetrievalProperties properties;
 
     public ChatRetrievalService(
             UserRepository userRepository,
-            SemanticSearchService semanticSearchService,
+            RetrievalPipeline retrievalPipeline,
             RetrievalContextBuilder contextBuilder,
             RetrievalProperties properties) {
         this.userRepository = userRepository;
-        this.semanticSearchService = semanticSearchService;
+        this.retrievalPipeline = retrievalPipeline;
         this.contextBuilder = contextBuilder;
         this.properties = properties;
     }
@@ -44,11 +47,10 @@ public class ChatRetrievalService {
         }
 
         try {
-            User user = userRepository.findByEmail(currentUserEmail)
-                    .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
+            WorkspaceContext workspaceContext = WorkspaceContextHolder.getContext();
             
-            log.info("Executing vector search for query: " + query);
-            var searchResults = semanticSearchService.search(query, user.getId());
+            log.info("ChatRetrievalService - CACHE MISS - Executing hybrid retrieval for query: '" + query + "'");
+            var searchResults = retrievalPipeline.retrieveAndRank(query, workspaceContext.getWorkspaceId());
             
             List<RetrievedChunk> chunks = contextBuilder.select(searchResults);
             log.info("Number of retrieved chunks after selection: " + chunks.size());

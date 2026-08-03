@@ -22,9 +22,8 @@ import lombok.Setter;
 @Table(
         name = "knowledge_documents",
         indexes = {
-                @Index(name = "idx_knowledge_documents_user_id", columnList = "user_id"),
-                @Index(name = "idx_knowledge_documents_user_status", columnList = "user_id, processing_status"),
-                @Index(name = "idx_knowledge_documents_user_created_at", columnList = "user_id, created_at")
+                @Index(name = "idx_knowledge_documents_workspace_id", columnList = "workspace_id"),
+                @Index(name = "idx_knowledge_documents_user_id", columnList = "created_by_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_knowledge_documents_storage_key", columnNames = "storage_key")
@@ -36,8 +35,12 @@ public class KnowledgeDocument extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private com.enterpriseai.backend.workspace.entity.Workspace workspace;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false)
+    private User createdBy;
 
     @Column(name = "original_file_name", nullable = false, length = 255)
     private String originalFileName;

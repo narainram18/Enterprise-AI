@@ -70,10 +70,10 @@ class SemanticSearchServiceIntegrationTest {
         public void deleteByDocument(Long documentId) {
         }
 
-        private VectorSearchResult result(Long chunkId, double score, Long ownerId, String text) {
+        private VectorSearchResult result(Long chunkId, double score, Long workspaceId, String text) {
             return new VectorSearchResult(chunkId, score, Map.of(
                     "documentId", 4L,
-                    "ownerId", ownerId,
+                    "workspaceId", workspaceId,
                     "chunkId", chunkId,
                     "chunkIndex", chunkId.intValue(),
                     "originalFileName", "handbook.txt",
