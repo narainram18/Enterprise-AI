@@ -38,7 +38,7 @@ class OllamaAiProviderStreamingIntegrationTest {
                                 AiMessageRole.USER,
                                 "Reply with a short explanation of dependency injection in Spring Boot."
                         )
-                )),
+                ), null, null, null),
                 new AiStreamHandler() {
                     @Override
                     public void onToken(String token) {

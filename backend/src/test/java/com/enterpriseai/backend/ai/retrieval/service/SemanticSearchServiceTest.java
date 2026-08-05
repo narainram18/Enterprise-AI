@@ -34,7 +34,8 @@ class SemanticSearchServiceTest {
         service = new SemanticSearchService(
                 queryEmbeddingService,
                 vectorStore,
-                new RetrievalProperties(true, 3, 0.70, 2, 2, 1000, 1000, true, true, "STRICT"));
+                new RetrievalProperties(true, 3, 0.70, 2, 2, 1000, 1000, true, true, "STRICT"),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
         when(provider.embed("benefits")).thenReturn(List.of(0.1, 0.2));
     }
 

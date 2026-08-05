@@ -6,6 +6,7 @@ public record RetrievedChunk(
         Long documentId,
         Long chunkId,
         int chunkIndex,
+        Integer pageNumber,
         double similarityScore,
         String documentFileName,
         DocumentType documentType,

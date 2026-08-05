@@ -50,7 +50,7 @@ class OllamaAiProviderStreamingTest {
 
         List<String> tokens = new ArrayList<>();
         boolean completed = provider.stream(
-                new AiChatRequest(List.of(new AiMessage(AiMessageRole.USER, "Hello"))),
+                new AiChatRequest(List.of(new AiMessage(AiMessageRole.USER, "Hello")), null, null, null),
                 new AiStreamHandler() {
                     @Override
                     public void onToken(String token) {

@@ -10,4 +10,6 @@ public class CreateConversationRequest {
 
     @Size(max = 255, message = "Title must not exceed 255 characters")
     private String title;
+
+    private String agentId;
 }

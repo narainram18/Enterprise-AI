@@ -17,6 +17,8 @@ import com.enterpriseai.backend.ai.vector.VectorStore;
 import com.enterpriseai.backend.ai.vector.dto.VectorSearchResult;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 import com.enterpriseai.backend.entity.DocumentType;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 @Service
 public class SemanticSearchService {
@@ -26,14 +28,17 @@ public class SemanticSearchService {
     private final QueryEmbeddingService queryEmbeddingService;
     private final VectorStore vectorStore;
     private final RetrievalProperties properties;
+    private final MeterRegistry meterRegistry;
 
     public SemanticSearchService(
             QueryEmbeddingService queryEmbeddingService,
             VectorStore vectorStore,
-            RetrievalProperties properties) {
+            RetrievalProperties properties,
+            MeterRegistry meterRegistry) {
         this.queryEmbeddingService = queryEmbeddingService;
         this.vectorStore = vectorStore;
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
     }
 
     public List<RetrievedChunk> search(String query, Long workspaceId) {
@@ -42,11 +47,15 @@ public class SemanticSearchService {
         }
 
         log.info("QueryEmbeddingService: CALLED (query: '{}')", query);
+        Timer.Sample embedSample = Timer.start(meterRegistry);
         List<Double> embedding = queryEmbeddingService.embedQuery(query);
+        embedSample.stop(meterRegistry.timer("search.embedding.latency"));
         log.info("QueryEmbeddingService: Embedding generated? {}", embedding != null && !embedding.isEmpty());
 
         log.info("SemanticSearchService: CALLED");
+        Timer.Sample vectorSample = Timer.start(meterRegistry);
         List<VectorSearchResult> results = searchVectorStore(embedding);
+        vectorSample.stop(meterRegistry.timer("search.vector.latency"));
 
         if (results == null) {
             log.info("SemanticSearchService: returned 0 chunks");
@@ -108,10 +117,12 @@ public class SemanticSearchService {
         }
 
         try {
+            Long pageNumber = longValue(metadata, "pageNumber");
             return new RetrievedChunk(
                     documentId,
                     chunkId,
                     chunkIndex.intValue(),
+                    pageNumber != null ? pageNumber.intValue() : null,
                     result.score(),
                     fileName,
                     DocumentType.valueOf(documentTypeValue),

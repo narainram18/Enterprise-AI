@@ -30,6 +30,7 @@ import com.enterpriseai.backend.document.extractor.PlainTextExtractor;
 import com.enterpriseai.backend.document.extractor.TextExtractionService;
 import com.enterpriseai.backend.document.storage.FileStorageService;
 import com.enterpriseai.backend.dto.DocumentResponse;
+import com.enterpriseai.backend.dto.DocumentDetailsResponse;
 import com.enterpriseai.backend.entity.DocumentChunk;
 import com.enterpriseai.backend.entity.KnowledgeDocument;
 import com.enterpriseai.backend.entity.Role;
@@ -118,7 +119,8 @@ class DocumentIngestionPipelineIntegrationTest {
                 new TextChunkingService(chunkingProperties),
                 documentChunkRepository,
                 embeddingService,
-                workspaceRepository);
+                workspaceRepository,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     @Test
@@ -126,7 +128,7 @@ class DocumentIngestionPipelineIntegrationTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "knowledge.txt", "text/plain", "ignored".getBytes(StandardCharsets.UTF_8));
 
-        DocumentResponse response = documentService.upload("owner@example.com", file);
+        DocumentDetailsResponse response = documentService.upload("owner@example.com", file);
 
         assertEquals(com.enterpriseai.backend.entity.DocumentProcessingStatus.READY, response.processingStatus());
         assertFalse(vectorStore.points.isEmpty());

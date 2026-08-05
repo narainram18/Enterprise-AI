@@ -57,6 +57,6 @@ class RetrievalContextBuilderTest {
     private RetrievedChunk chunk(
             Long chunkId, Long documentId, int index, double score, String content) {
         return new RetrievedChunk(
-                documentId, chunkId, index, score, "handbook.txt", DocumentType.TXT, content, 7L);
+                documentId, chunkId, index, null, score, "handbook.txt", DocumentType.TXT, content, 7L);
     }
 }

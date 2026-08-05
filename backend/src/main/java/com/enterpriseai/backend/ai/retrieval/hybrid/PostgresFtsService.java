@@ -53,6 +53,7 @@ public class PostgresFtsService implements KeywordSearchService {
                     rs.getLong("document_id"),
                     rs.getLong("chunk_id"),
                     rs.getInt("chunk_index"),
+                    null, // pageNumber
                     rs.getDouble("score"), // BM25-like ts_rank score
                     rs.getString("original_file_name"),
                     DocumentType.valueOf(rs.getString("document_type")),

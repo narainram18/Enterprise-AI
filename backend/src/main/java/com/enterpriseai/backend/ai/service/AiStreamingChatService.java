@@ -28,6 +28,12 @@ import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.service.ConversationService;
 import com.enterpriseai.backend.workspace.context.WorkspaceContext;
 import com.enterpriseai.backend.workspace.context.WorkspaceContextHolder;
+import com.enterpriseai.backend.ai.agent.Agent;
+import com.enterpriseai.backend.ai.agent.AgentRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.slf4j.MDC;
+import java.util.Map;
 
 @Service
 public class AiStreamingChatService {
@@ -36,6 +42,7 @@ public class AiStreamingChatService {
 
     private static final String USER_MESSAGE_EVENT = "user_message";
     private static final String TOKEN_EVENT = "token";
+    private static final String TOOL_PROGRESS_EVENT = "tool_progress";
     private static final String COMPLETE_EVENT = "complete";
     private static final String ERROR_EVENT = "error";
 
@@ -46,6 +53,9 @@ public class AiStreamingChatService {
     private final AiChatProperties properties;
     private final Executor executor;
     private final ChatRetrievalService chatRetrievalService;
+    private final AgentRegistry agentRegistry;
+    private final com.enterpriseai.backend.ai.tool.ToolExecutor toolExecutor;
+    private final MeterRegistry meterRegistry;
 
     @Autowired
     public AiStreamingChatService(
@@ -55,7 +65,10 @@ public class AiStreamingChatService {
             AiProvider aiProvider,
             AiChatProperties properties,
             @Qualifier("aiStreamingExecutor") Executor executor,
-            ChatRetrievalService chatRetrievalService) {
+            ChatRetrievalService chatRetrievalService,
+            AgentRegistry agentRegistry,
+            com.enterpriseai.backend.ai.tool.ToolExecutor toolExecutor,
+            MeterRegistry meterRegistry) {
         this.conversationService = conversationService;
         this.aiChatService = aiChatService;
         this.conversationMapper = conversationMapper;
@@ -63,6 +76,9 @@ public class AiStreamingChatService {
         this.properties = properties;
         this.executor = executor;
         this.chatRetrievalService = chatRetrievalService;
+        this.agentRegistry = agentRegistry;
+        this.toolExecutor = toolExecutor;
+        this.meterRegistry = meterRegistry;
     }
 
     public AiStreamingChatService(
@@ -71,9 +87,12 @@ public class AiStreamingChatService {
             ConversationMapper conversationMapper,
             AiProvider aiProvider,
             AiChatProperties properties,
-            @Qualifier("aiStreamingExecutor") Executor executor) {
+            @Qualifier("aiStreamingExecutor") Executor executor,
+            AgentRegistry agentRegistry,
+            com.enterpriseai.backend.ai.tool.ToolExecutor toolExecutor,
+            MeterRegistry meterRegistry) {
         this(conversationService, aiChatService, conversationMapper, aiProvider,
-                properties, executor, null);
+                properties, executor, null, agentRegistry, toolExecutor, meterRegistry);
     }
 
     public SseEmitter stream(
@@ -87,12 +106,17 @@ public class AiStreamingChatService {
                 request);
         log.info("SSE USER message saved conversationId={} messageId={}", conversationId, userMessage.getId());
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
-        ChatRetrievalResult retrieval = retrieve(request.getContent(), currentUserEmail);
+        
+        Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
+        
+        ChatRetrievalResult retrieval = agent.supportsRag() 
+                ? retrieve(request.getContent(), currentUserEmail)
+                : ChatRetrievalResult.empty(false);
 
         return startStream(
                 conversationId,
                 currentUserEmail,
-                buildRequest(conversationId, retrieval),
+                buildRequest(agent, conversationId, retrieval),
                 userResponse,
                 retrieval);
     }
@@ -102,11 +126,16 @@ public class AiStreamingChatService {
             Long messageId,
             String currentUserEmail) {
         ChatMessage userMessage = conversationService.getUserMessage(conversationId, messageId, currentUserEmail);
-        ChatRetrievalResult retrieval = retrieve(userMessage.getContent(), currentUserEmail);
+        Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
+        
+        ChatRetrievalResult retrieval = agent.supportsRag()
+                ? retrieve(userMessage.getContent(), currentUserEmail)
+                : ChatRetrievalResult.empty(false);
+                
         return startStream(
                 conversationId,
                 currentUserEmail,
-                buildRequest(conversationId, retrieval),
+                buildRequest(agent, conversationId, retrieval),
                 null,
                 retrieval);
     }
@@ -121,11 +150,13 @@ public class AiStreamingChatService {
                 currentUserEmail,
                 request);
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
+        Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
+        
         ChatRetrievalResult retrieval = ChatRetrievalResult.empty(false);
         return startStream(
                 conversationId,
                 currentUserEmail,
-                aiChatService.buildContextRequest(conversationId, retrievalContext),
+                aiChatService.buildContextRequest(agent, conversationId, retrievalContext),
                 userResponse,
                 retrieval);
     }
@@ -148,8 +179,12 @@ public class AiStreamingChatService {
         }
 
         WorkspaceContext context = WorkspaceContextHolder.getContext();
+        Map<String, String> mdcContext = MDC.getCopyOfContextMap();
 
         executor.execute(() -> {
+            if (mdcContext != null) {
+                MDC.setContextMap(mdcContext);
+            }
             if (context != null) {
                 WorkspaceContextHolder.setContext(context);
             }
@@ -166,6 +201,7 @@ public class AiStreamingChatService {
                 if (context != null) {
                     WorkspaceContextHolder.clearContext();
                 }
+                MDC.clear();
             }
         });
 
@@ -184,32 +220,77 @@ public class AiStreamingChatService {
         workerThread.set(Thread.currentThread());
         log.info("SSE Ollama streaming started conversationId={} thread={}", conversationId, Thread.currentThread().getName());
 
+        Timer.Sample streamSample = Timer.start(meterRegistry);
         StringBuilder assistantContent = new StringBuilder();
 
         try {
-            boolean completed = aiProvider.stream(request, new AiStreamHandler() {
-                @Override
-                public void onToken(String token) {
-                    if (cancelled.get()) {
-                        throw new AiStreamCancelledException();
+            boolean loop = true;
+            int maxToolCalls = 5;
+            int toolCalls = 0;
+            AiChatRequest currentRequest = request;
+
+            while (loop && toolCalls < maxToolCalls) {
+                loop = false; // By default don't loop unless a tool is called
+
+                ToolStreamInterceptor interceptor = new ToolStreamInterceptor(new AiStreamHandler() {
+                    @Override
+                    public void onToken(String token) {
+                        if (cancelled.get()) {
+                            throw new AiStreamCancelledException();
+                        }
+
+                        assistantContent.append(token);
+                        if (!sendEvent(emitter, TOKEN_EVENT, token, cancelled)) {
+                            throw new AiStreamCancelledException();
+                        }
                     }
 
-                    assistantContent.append(token);
-                    if (!sendEvent(emitter, TOKEN_EVENT, token, cancelled)) {
-                        throw new AiStreamCancelledException();
+                    @Override
+                    public boolean isCancelled() {
+                        return cancelled.get();
                     }
+                });
+
+                Timer.Sample llmSample = Timer.start(meterRegistry);
+                boolean completed = aiProvider.stream(currentRequest, interceptor);
+                llmSample.stop(meterRegistry.timer("chat.llm.latency"));
+                interceptor.flushRemaining();
+
+                if (!completed || cancelled.get()) {
+                    log.info("SSE generation ended without persistence conversationId={} completed={} cancelled={}", conversationId, completed, cancelled.get());
+                    emitter.complete();
+                    return;
                 }
 
-                @Override
-                public boolean isCancelled() {
-                    return cancelled.get();
-                }
-            });
+                if (interceptor.hasToolCall()) {
+                    toolCalls++;
+                    log.info("Tool call intercepted: {}", interceptor.getToolName());
+                    sendEvent(emitter, TOOL_PROGRESS_EVENT, interceptor.getToolName(), cancelled);
 
-            if (!completed || cancelled.get()) {
-                log.info("SSE generation ended without persistence conversationId={} completed={} cancelled={}", conversationId, completed, cancelled.get());
-                emitter.complete();
-                return;
+                    // Execute tool
+                    com.enterpriseai.backend.ai.tool.ToolContext toolContext = new com.enterpriseai.backend.ai.tool.ToolContext(
+                            WorkspaceContextHolder.getContext().getWorkspaceId(), currentUserEmail, conversationId);
+                    
+                    Timer.Sample toolSample = Timer.start(meterRegistry);
+                    com.enterpriseai.backend.ai.tool.ToolResult result = toolExecutor.execute(
+                            interceptor.getToolName(), interceptor.getToolParameters(), toolContext);
+                    toolSample.stop(meterRegistry.timer("chat.tool.latency", "tool", interceptor.getToolName()));
+
+                    // Add assistant tool_call message and tool result to currentRequest
+                    java.util.List<com.enterpriseai.backend.ai.model.AiMessage> newMessages = new java.util.ArrayList<>(currentRequest.messages());
+                    newMessages.add(new com.enterpriseai.backend.ai.model.AiMessage(
+                            com.enterpriseai.backend.ai.model.AiMessageRole.ASSISTANT, interceptor.getRawToolCall()));
+                    
+                    String toolResultMessage = "<tool_result>\n" +
+                            "  <success>" + result.success() + "</success>\n" +
+                            "  <result>" + result.content() + "</result>\n" +
+                            "</tool_result>\n";
+                    newMessages.add(new com.enterpriseai.backend.ai.model.AiMessage(
+                            com.enterpriseai.backend.ai.model.AiMessageRole.USER, toolResultMessage));
+
+                    currentRequest = new AiChatRequest(newMessages, currentRequest.temperature(), currentRequest.topP(), currentRequest.model());
+                    loop = true;
+                }
             }
 
             if (assistantContent.isEmpty()) {
@@ -235,17 +316,21 @@ public class AiStreamingChatService {
 
             if (sendEvent(emitter, COMPLETE_EVENT, assistantResponse, cancelled)) {
                 log.info("SSE complete event emitted conversationId={}", conversationId);
+                streamSample.stop(meterRegistry.timer("chat.sse.duration"));
                 emitter.complete();
                 log.info("SSE emitter completed conversationId={}", conversationId);
             }
         } catch (AiStreamCancelledException ex) {
             log.info("SSE generation cancelled conversationId={}", conversationId);
+            streamSample.stop(meterRegistry.timer("chat.sse.duration", "status", "cancelled"));
             emitter.complete();
         } catch (AiGenerationException ex) {
             log.error("SSE generation failed conversationId={} cause={}", conversationId, ex.getMessage(), ex);
+            streamSample.stop(meterRegistry.timer("chat.sse.duration", "status", "failed"));
             sendErrorAndComplete(emitter, cancelled, ex.getMessage());
         } catch (RuntimeException ex) {
             log.error("SSE generation failed unexpectedly conversationId={}", conversationId, ex);
+            streamSample.stop(meterRegistry.timer("chat.sse.duration", "status", "error"));
             sendErrorAndComplete(emitter, cancelled, "AI streaming failed");
         }
     }
@@ -256,10 +341,10 @@ public class AiStreamingChatService {
                 : chatRetrievalService.retrieve(query, currentUserEmail);
     }
 
-    private AiChatRequest buildRequest(Long conversationId, ChatRetrievalResult retrieval) {
+    private AiChatRequest buildRequest(Agent agent, Long conversationId, ChatRetrievalResult retrieval) {
         return chatRetrievalService == null
                 ? aiChatService.buildContextRequest(conversationId)
-                : aiChatService.buildContextRequest(conversationId, retrieval.context());
+                : aiChatService.buildContextRequest(agent, conversationId, retrieval.context());
     }
 
     private void registerLifecycleCallbacks(

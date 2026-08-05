@@ -16,4 +16,5 @@ public class ConversationSummaryResponse {
     private String title;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String agentId;
 }

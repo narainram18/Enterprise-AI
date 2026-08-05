@@ -24,6 +24,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
 import com.enterpriseai.backend.ai.config.AiChatProperties;
+import com.enterpriseai.backend.ai.context.DefaultChatContextExtension;
+import com.enterpriseai.backend.ai.context.RagPromptBuilder;
+import com.enterpriseai.backend.ai.context.TokenBudgetManager;
 import com.enterpriseai.backend.ai.exception.AiGenerationException;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.model.AiMessage;
@@ -36,8 +39,11 @@ import com.enterpriseai.backend.entity.ChatMessage;
 import com.enterpriseai.backend.entity.MessageRole;
 import com.enterpriseai.backend.exception.ResourceNotFoundException;
 import com.enterpriseai.backend.mapper.ConversationMapper;
-import com.enterpriseai.backend.repository.ChatMessageRepository;
 import com.enterpriseai.backend.service.ConversationService;
+import com.enterpriseai.backend.repository.ChatMessageRepository;
+import com.enterpriseai.backend.ai.agent.AgentRegistry;
+import com.enterpriseai.backend.ai.agent.Agent;
+import com.enterpriseai.backend.entity.Conversation;
 
 @ExtendWith(MockitoExtension.class)
 class AiChatServiceTest {
@@ -54,6 +60,9 @@ class AiChatServiceTest {
     @Mock
     private AiProvider aiProvider;
 
+    @Mock
+    private AgentRegistry agentRegistry;
+
     private AiChatService aiChatService;
 
     @BeforeEach
@@ -63,7 +72,9 @@ class AiChatServiceTest {
                 chatMessageRepository,
                 conversationMapper,
                 aiProvider,
-                new AiChatProperties(2, 120000, 1000, 2000, 4000));
+                new AiChatProperties(2, 120000, 1000, 2000, 4000),
+                new DefaultChatContextExtension(new RagPromptBuilder(new TokenBudgetManager(), new AiChatProperties(10, 120000, 1000, 2000, 4000)), new com.enterpriseai.backend.ai.tool.ToolRegistry(java.util.List.of())),
+                agentRegistry);
     }
 
     @Test
@@ -78,6 +89,7 @@ class AiChatServiceTest {
                 .thenReturn(userMessage);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(userMessage));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class)))
                 .thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
@@ -114,6 +126,7 @@ class AiChatServiceTest {
                 .thenReturn(newestUser);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(newestUser, olderAssistant));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class))).thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
                 42L,
@@ -162,6 +175,7 @@ class AiChatServiceTest {
                 .thenReturn(userMessage);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(userMessage));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class)))
                 .thenThrow(new AiGenerationException("AI provider is unavailable"));
 
@@ -185,6 +199,9 @@ class AiChatServiceTest {
         message.setRole(role);
         message.setContent(content);
         message.setCreatedAt(LocalDateTime.now());
+        Conversation conversation = new Conversation();
+        conversation.setAgentId("general-assistant");
+        message.setConversation(conversation);
         return message;
     }
 

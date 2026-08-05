@@ -12,6 +12,7 @@ import com.enterpriseai.backend.ai.context.TokenBudgetManager;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
 import com.enterpriseai.backend.ai.model.AiMessage;
 import com.enterpriseai.backend.ai.model.AiMessageRole;
+import com.enterpriseai.backend.ai.agent.Agent;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 import com.enterpriseai.backend.ai.retrieval.service.RetrievalContextBuilder;
 import com.enterpriseai.backend.entity.DocumentType;
@@ -58,11 +59,15 @@ public class RagArchitectureTest {
         AiChatRequest historyRequest = new AiChatRequest(List.of(
             new AiMessage(AiMessageRole.USER, "What is the policy?"),
             new AiMessage(AiMessageRole.ASSISTANT, "The policy is X.")
-        ));
+        ), null, null, null);
 
         String retrievalContext = "[Document: policy.pdf]\n\n--- Section 1 ---\nPolicy is Y.";
 
-        AiChatRequest result = builder.build(historyRequest, retrievalContext);
+        AiChatRequest result = builder.build(
+            new Agent("test-agent", "Test", "Desc", "Icon", "Color", "You are a test agent", 0.7, 0.9, "Model", true, true, java.util.List.of()),
+            historyRequest, 
+            retrievalContext
+        );
 
         assertEquals(2, result.messages().size(), "Result should exactly have SYSTEM and USER messages");
         assertEquals(AiMessageRole.SYSTEM, result.messages().get(0).role());
@@ -82,11 +87,11 @@ public class RagArchitectureTest {
         RetrievalContextBuilder builder = new RetrievalContextBuilder(props);
 
         List<RetrievedChunk> chunks = List.of(
-            new RetrievedChunk(1L, 101L, 2, 0.9, "docA.pdf", DocumentType.PDF, "Content A part 2", 1L),
-            new RetrievedChunk(1L, 100L, 1, 0.85, "docA.pdf", DocumentType.PDF, "Content A part 1", 1L),
-            new RetrievedChunk(2L, 201L, 1, 0.8, "docB.pdf", DocumentType.PDF, "Content B part 1", 1L),
+            new RetrievedChunk(1L, 101L, 2,null, 0.9, "docA.pdf", DocumentType.PDF, "Content A part 2", 1L),
+            new RetrievedChunk(1L, 100L, 1,null, 0.85, "docA.pdf", DocumentType.PDF, "Content A part 1", 1L),
+            new RetrievedChunk(2L, 201L, 1,null, 0.8, "docB.pdf", DocumentType.PDF, "Content B part 1", 1L),
             // Duplicate chunk text to test compression
-            new RetrievedChunk(2L, 202L, 2, 0.75, "docB.pdf", DocumentType.PDF, "Content B part 1", 1L) 
+            new RetrievedChunk(2L, 202L, 2,null, 0.75, "docB.pdf", DocumentType.PDF, "Content B part 1", 1L) 
         );
 
         String context = builder.build(chunks);

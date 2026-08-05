@@ -4,5 +4,5 @@ import com.enterpriseai.backend.ai.model.AiChatRequest;
 
 public interface ChatContextExtension {
 
-    AiChatRequest extend(AiChatRequest historyRequest, String retrievalContext);
+    AiChatRequest extend(com.enterpriseai.backend.ai.agent.Agent agent, AiChatRequest historyRequest, String retrievalContext);
 }

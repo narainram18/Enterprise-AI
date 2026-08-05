@@ -13,7 +13,12 @@ import com.enterpriseai.backend.document.extractor.TextExtractionException;
 import com.enterpriseai.backend.document.extractor.TextExtractionService;
 import com.enterpriseai.backend.document.storage.FileStorageService;
 import com.enterpriseai.backend.dto.DocumentResponse;
+import com.enterpriseai.backend.dto.DocumentDetailsResponse;
 import com.enterpriseai.backend.dto.DocumentTextResponse;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
 import com.enterpriseai.backend.entity.DocumentProcessingStatus;
 import com.enterpriseai.backend.entity.DocumentType;
 import com.enterpriseai.backend.entity.KnowledgeDocument;
@@ -33,8 +38,12 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 @Service
+@Transactional(readOnly = true)
 public class DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
@@ -51,6 +60,7 @@ public class DocumentService {
     private final DocumentChunkRepository documentChunkRepository;
     private final DocumentEmbeddingService documentEmbeddingService;
     private final WorkspaceRepository workspaceRepository;
+    private final MeterRegistry meterRegistry;
 
     public DocumentService(
             UserRepository userRepository,
@@ -61,7 +71,8 @@ public class DocumentService {
             TextChunkingService textChunkingService,
             DocumentChunkRepository documentChunkRepository,
             DocumentEmbeddingService documentEmbeddingService,
-            WorkspaceRepository workspaceRepository) {
+            WorkspaceRepository workspaceRepository,
+            MeterRegistry meterRegistry) {
         this.userRepository = userRepository;
         this.documentRepository = documentRepository;
         this.fileStorageService = fileStorageService;
@@ -71,10 +82,12 @@ public class DocumentService {
         this.documentChunkRepository = documentChunkRepository;
         this.documentEmbeddingService = documentEmbeddingService;
         this.workspaceRepository = workspaceRepository;
+        this.meterRegistry = meterRegistry;
     }
 
+    @Transactional
     @CacheEvict(value = "retrievalResults", allEntries = true)
-    public DocumentResponse upload(String email, MultipartFile file) {
+    public DocumentDetailsResponse upload(String email, MultipartFile file) {
         log.info("CACHE EVICT - Invalidation triggered by upload");
         DocumentType type = validate(file);
         User user = resolveUser(email);
@@ -91,55 +104,109 @@ public class DocumentService {
         document.setContentType(contentType(file));
         document.setFileSize(file.getSize());
         document.setDocumentType(type);
-        document.setProcessingStatus(DocumentProcessingStatus.UPLOADED);
+        
+        updateStatus(document, DocumentProcessingStatus.UPLOADED);
 
         try {
-            documentRepository.save(document);
-            document.setProcessingStatus(DocumentProcessingStatus.PROCESSING);
-            documentRepository.save(document);
-
-            try (InputStream input = fileStorageService.open(storageKey)) {
-                log.info("Upload started for file: {}", document.getOriginalFileName());
-                String extractedText = textExtractionService.extract(type, input);
-                log.info("Text extracted: {} chars", extractedText.length());
-                document.setExtractedText(extractedText);
-                document.setExtractionError(null);
-                
-                List<DocumentChunk> chunks = textChunkingService.createChunks(document, extractedText);
-                log.info("Chunks created: {}", chunks.size());
-                List<DocumentChunk> persistedChunks = documentChunkRepository.saveAll(chunks);
-                log.info("Chunks persisted");
-                
-                log.info("Embedding generation started");
-                documentEmbeddingService.embedAndStore(document, persistedChunks);
-                log.info("Vectors stored and READY");
-                
-                document.setProcessingStatus(DocumentProcessingStatus.READY);
-            } catch (java.io.IOException | RuntimeException ex) {
-                log.error("Document processing failed", ex);
-                if (document.getId() != null) {
-                    documentChunkRepository.deleteByDocumentId(document.getId());
-                }
-                document.setExtractedText(null);
-                document.setExtractionError(safeError(ex));
-                document.setProcessingStatus(DocumentProcessingStatus.FAILED);
-            }
-
-            return toResponse(documentRepository.save(document));
+            Timer.Sample sample = Timer.start(meterRegistry);
+            processDocument(document);
+            DocumentDetailsResponse response = toDetailsResponse(documentRepository.save(document));
+            sample.stop(meterRegistry.timer("document.upload"));
+            return response;
         } catch (RuntimeException ex) {
             fileStorageService.delete(storageKey);
             throw ex;
         }
     }
 
-    public Page<DocumentResponse> list(String email, Pageable pageable) {
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
-        return documentRepository.findByWorkspaceIdOrderByCreatedAtDesc(context.getWorkspaceId(), pageable)
-                .map(this::toResponse);
+    private void updateStatus(KnowledgeDocument document, DocumentProcessingStatus status) {
+        document.setProcessingStatus(status);
+        documentRepository.save(document);
     }
 
-    public DocumentResponse get(String email, Long id) {
-        return toResponse(findOwned(email, id));
+    private void processDocument(KnowledgeDocument document) {
+        try (InputStream input = fileStorageService.open(document.getStorageKey())) {
+            updateStatus(document, DocumentProcessingStatus.EXTRACTING_TEXT);
+            log.info("Upload started for file: {}", document.getOriginalFileName());
+            String extractedText = textExtractionService.extract(document.getDocumentType(), input);
+            log.info("Text extracted: {} chars", extractedText.length());
+            document.setExtractedText(extractedText);
+            document.setExtractionError(null);
+            
+            updateStatus(document, DocumentProcessingStatus.CHUNKING);
+            List<DocumentChunk> chunks = textChunkingService.createChunks(document, extractedText);
+            log.info("Chunks created: {}", chunks.size());
+            List<DocumentChunk> persistedChunks = documentChunkRepository.saveAll(chunks);
+            log.info("Chunks persisted");
+            
+            updateStatus(document, DocumentProcessingStatus.CREATING_EMBEDDINGS);
+            log.info("Embedding generation started");
+            Timer.Sample embedSample = Timer.start(meterRegistry);
+            documentEmbeddingService.embedAndStore(document, persistedChunks);
+            embedSample.stop(meterRegistry.timer("document.embedding"));
+            log.info("Vectors stored and READY");
+            
+            updateStatus(document, DocumentProcessingStatus.READY);
+        } catch (java.io.IOException | RuntimeException ex) {
+            log.error("Document processing failed", ex);
+            if (document.getId() != null) {
+                documentChunkRepository.deleteByDocumentId(document.getId());
+            }
+            document.setExtractedText(null);
+            document.setExtractionError(safeError(ex));
+            updateStatus(document, DocumentProcessingStatus.FAILED);
+        }
+    }
+
+    public Page<DocumentDetailsResponse> list(String email, Pageable pageable, String originalFileName, DocumentType documentType) {
+        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        Specification<KnowledgeDocument> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("workspace").get("id"), context.getWorkspaceId()));
+            if (originalFileName != null && !originalFileName.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("originalFileName")), "%" + originalFileName.toLowerCase() + "%"));
+            }
+            if (documentType != null) {
+                predicates.add(cb.equal(root.get("documentType"), documentType));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // If pageable already has sort, it will use it, otherwise fallback
+        return documentRepository.findAll(spec, pageable).map(this::toDetailsResponse);
+    }
+
+    public DocumentDetailsResponse get(String email, Long id) {
+        return toDetailsResponse(findOwned(email, id));
+    }
+
+    @Transactional
+    @CacheEvict(value = "retrievalResults", allEntries = true)
+    public DocumentDetailsResponse rename(String email, Long id, String newName) {
+        log.info("CACHE EVICT - Invalidation triggered by rename");
+        KnowledgeDocument document = findOwned(email, id);
+        if (newName == null || newName.isBlank()) {
+            throw new BadRequestException("New name cannot be blank");
+        }
+        document.setOriginalFileName(newName);
+        return toDetailsResponse(documentRepository.save(document));
+    }
+
+    @Transactional
+    @CacheEvict(value = "retrievalResults", allEntries = true)
+    public DocumentDetailsResponse retryProcessing(String email, Long id) {
+        log.info("CACHE EVICT - Invalidation triggered by retry processing");
+        KnowledgeDocument document = findOwned(email, id);
+        if (document.getProcessingStatus() == DocumentProcessingStatus.READY) {
+            throw new BadRequestException("Document is already processed");
+        }
+        processDocument(document);
+        return toDetailsResponse(document);
+    }
+
+    public InputStream download(String email, Long id) {
+        KnowledgeDocument document = findOwned(email, id);
+        return fileStorageService.open(document.getStorageKey());
     }
 
     public DocumentTextResponse getText(String email, Long id) {
@@ -152,6 +219,7 @@ public class DocumentService {
                 document.getProcessingStatus(), document.getExtractedText());
     }
 
+    @Transactional
     @CacheEvict(value = "retrievalResults", allEntries = true)
     public void delete(String email, Long id) {
         log.info("CACHE EVICT - Invalidation triggered by delete");
@@ -217,6 +285,23 @@ public class DocumentService {
                 document.getId(), document.getOriginalFileName(), document.getContentType(),
                 document.getFileSize(), document.getDocumentType(), document.getProcessingStatus(),
                 document.getExtractionError(), document.getCreatedAt(), document.getUpdatedAt());
+    }
+
+    private DocumentDetailsResponse toDetailsResponse(KnowledgeDocument document) {
+        int chunkCount = 0;
+        if (document.getId() != null) {
+            chunkCount = documentChunkRepository.countByDocumentId(document.getId());
+        }
+        LocalDateTime lastIndexedAt = document.getProcessingStatus() == DocumentProcessingStatus.READY ? document.getUpdatedAt() : null;
+        return new DocumentDetailsResponse(
+                document.getId(), document.getOriginalFileName(), document.getContentType(),
+                document.getFileSize(), document.getDocumentType(), document.getProcessingStatus(),
+                document.getExtractionError(), 
+                document.getCreatedBy().getName(),
+                document.getWorkspace().getName(),
+                chunkCount,
+                lastIndexedAt,
+                document.getCreatedAt(), document.getUpdatedAt());
     }
 
     private String originalName(MultipartFile file) {

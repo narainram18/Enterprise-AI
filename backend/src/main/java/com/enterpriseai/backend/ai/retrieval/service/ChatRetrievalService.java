@@ -66,6 +66,7 @@ public class ChatRetrievalService {
                             chunk.documentId(),
                             chunk.documentFileName(),
                             chunk.chunkIndex(),
+                            chunk.pageNumber(),
                             chunk.similarityScore()))
                     .toList();
             int documents = (int) chunks.stream()

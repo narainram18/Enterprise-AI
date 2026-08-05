@@ -52,7 +52,7 @@ class ChatRetrievalServiceTest {
     @Test
     void returnsContextCitationsAndStatisticsForRetrievedChunks() {
         RetrievedChunk chunk = new RetrievedChunk(
-                11L, 22L, 1, 0.91, "handbook.pdf", DocumentType.PDF, "Responsibilities", 7L);
+                11L, 22L, 1, null, 0.91, "handbook.pdf", DocumentType.PDF, "Responsibilities", 7L);
 
         when(retrievalPipeline.retrieveAndRank("responsibilities", 7L)).thenReturn(List.of(chunk));
         when(contextBuilder.select(List.of(chunk))).thenReturn(List.of(chunk));

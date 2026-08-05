@@ -32,6 +32,9 @@ import com.enterpriseai.backend.entity.MessageRole;
 import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.repository.ChatMessageRepository;
 import com.enterpriseai.backend.service.ConversationService;
+import com.enterpriseai.backend.ai.agent.AgentRegistry;
+import com.enterpriseai.backend.ai.agent.Agent;
+import com.enterpriseai.backend.entity.Conversation;
 
 @ExtendWith(MockitoExtension.class)
 class AiStreamingRagIntegrationTest {
@@ -46,6 +49,10 @@ class AiStreamingRagIntegrationTest {
     private AiProvider aiProvider;
     @Mock
     private ChatRetrievalService retrievalService;
+    @Mock
+    private AgentRegistry agentRegistry;
+    @Mock
+    private com.enterpriseai.backend.ai.tool.ToolExecutor toolExecutor;
 
     @Test
     void streamsWithRetrievedContextWithoutChangingProviderStreamingContract() {
@@ -55,8 +62,9 @@ class AiStreamingRagIntegrationTest {
                 conversationMapper,
                 aiProvider,
                 new AiChatProperties(10, 120000, 1000, 2000, 4000),
-                new DefaultChatContextExtension(new RagPromptBuilder(new TokenBudgetManager(), new AiChatProperties(10, 120000, 1000, 2000, 4000))),
-                retrievalService);
+                new DefaultChatContextExtension(new RagPromptBuilder(new TokenBudgetManager(), new AiChatProperties(10, 120000, 1000, 2000, 4000)), new com.enterpriseai.backend.ai.tool.ToolRegistry(java.util.List.of())),
+                retrievalService,
+                agentRegistry);
         AiStreamingChatService service = new AiStreamingChatService(
                 conversationService,
                 aiChatService,
@@ -64,7 +72,10 @@ class AiStreamingRagIntegrationTest {
                 aiProvider,
                 new AiChatProperties(10, 120000, 1000, 2000, 4000),
                 Runnable::run,
-                retrievalService);
+                retrievalService,
+                agentRegistry,
+                toolExecutor,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
 
         CreateMessageRequest request = new CreateMessageRequest();
         request.setContent("What are my internship responsibilities?");
@@ -74,12 +85,13 @@ class AiStreamingRagIntegrationTest {
         ChatMessageResponse assistantResponse = new ChatMessageResponse(2L, MessageRole.ASSISTANT, assistant.getContent(), assistant.getCreatedAt());
         when(conversationService.saveUserMessage(42L, "user@example.com", request)).thenReturn(user);
         when(chatMessageRepository.findByConversationId(eq(42L), any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(user));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", true, true, java.util.List.of()));
         when(conversationMapper.toMessageResponse(user)).thenReturn(userResponse);
         when(conversationMapper.toMessageResponse(assistant)).thenReturn(assistantResponse);
         when(retrievalService.retrieve(request.getContent(), "user@example.com"))
                 .thenReturn(new ChatRetrievalResult(
                         "[Document: internship.pdf]\n\nContent:\nOwn onboarding",
-                        List.of(new RetrievalCitation(9L, "internship.pdf", 0, 0.9)),
+                        List.of(new RetrievalCitation(9L, "internship.pdf", 0, null, 0.9)),
                         new RetrievalStatistics(1, 1, true)));
         when(aiProvider.stream(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
             invocation.<com.enterpriseai.backend.ai.provider.AiStreamHandler>getArgument(1).onToken("grounded");
@@ -103,6 +115,9 @@ class AiStreamingRagIntegrationTest {
         message.setRole(role);
         message.setContent(content);
         message.setCreatedAt(LocalDateTime.now());
+        Conversation conversation = new Conversation();
+        conversation.setAgentId("general-assistant");
+        message.setConversation(conversation);
         return message;
     }
 }

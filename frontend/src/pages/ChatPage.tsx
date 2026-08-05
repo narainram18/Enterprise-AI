@@ -1,14 +1,16 @@
 import { Children, isValidElement, useEffect, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
-import { Bot, Check, CircleStop, Copy, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Plus, RefreshCw, Save, Search, Send, Sparkles, Trash2, UserRound, X } from 'lucide-react'
+import { Bot, Check, CircleStop, Copy, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Plus, RefreshCw, Save, Search, Send, Sparkles, Trash2, UserRound, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useNavigate, useParams } from 'react-router-dom'
 import { conversationsApi, regenerateConversationMessage, streamConversationMessage, type ChatMessageResponse, type ConversationSummary, type StreamCallbacks } from '../lib/api'
 import { Button, EmptyState, ErrorState, IconButton, LoadingState, TextArea } from '../components/ui/Ui'
+import { AgentSelector } from '../components/AgentSelector'
 
 type ChatMessage = Omit<ChatMessageResponse, 'id'> & {
   id: number | string
   isStreaming?: boolean
   isThinking?: boolean
+  toolStatus?: string
   streamError?: string
 }
 
@@ -32,6 +34,7 @@ export function ChatPage() {
   const [renameTitle, setRenameTitle] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState<number | string | null>(null)
+  const [selectedAgentId, setSelectedAgentId] = useState('general-assistant')
   const abortControllerRef = useRef<AbortController | null>(null)
   const copyTimeoutRef = useRef<number | null>(null)
   const requestIdRef = useRef(0)
@@ -74,6 +77,7 @@ export function ChatPage() {
         setActiveConversation(data.data)
         setRenameTitle(data.data.title)
         setMessages(data.data.messages)
+        if (data.data.agentId) setSelectedAgentId(data.data.agentId)
       })
       .catch(() => {
         if (currentConversationRef.current === loadId) setLoadError('We couldn’t load this conversation. Please try again.')
@@ -131,6 +135,7 @@ export function ChatPage() {
     setMessages([])
     setMenuOpen(false)
     setIsRenaming(false)
+    setSelectedAgentId('general-assistant')
     currentConversationRef.current = null
     navigate('/app/chat')
   }
@@ -263,6 +268,32 @@ export function ChatPage() {
             : item)
         })
       },
+      onToolProgress: (toolName) => {
+        if (requestIdRef.current !== requestId) return
+        let status = 'Using tool...'
+        if (toolName === 'search_documents' || toolName === 'list_documents' || toolName === 'retrieve_document') status = 'Searching documents...'
+        else if (toolName === 'workspace_info') status = 'Fetching workspace info...'
+        else if (toolName === 'conversation_summary') status = 'Summarizing conversation...'
+        else status = `Running ${toolName}...`
+
+        setMessages((current) => {
+          const existingIndex = current.findIndex((item) => item.id === streamingAssistantId)
+          if (existingIndex === -1) {
+            return [...current, {
+              id: streamingAssistantId,
+              role: 'ASSISTANT',
+              content: '',
+              createdAt: new Date().toISOString(),
+              isStreaming: true,
+              isThinking: true,
+              toolStatus: status,
+            }]
+          }
+          return current.map((item, index) => index === existingIndex
+            ? { ...item, toolStatus: status, isThinking: true }
+            : item)
+        })
+      },
       onComplete: (assistantMessage) => {
         if (requestIdRef.current !== requestId) return
         setMessages((current) => {
@@ -320,7 +351,7 @@ export function ChatPage() {
 
     try {
       if (!conversationId) {
-        const { data } = await conversationsApi.create(createConversationTitle(content))
+        const { data } = await conversationsApi.create(createConversationTitle(content), selectedAgentId)
         if (requestIdRef.current !== requestId) return
         conversationId = data.data.id
         currentConversationRef.current = conversationId
@@ -391,6 +422,7 @@ export function ChatPage() {
   }
 
   const visibleConversations = conversations.filter((conversation) => conversation.title.toLowerCase().includes(search.toLowerCase()))
+  const groupedConversations = groupConversationsByTime(visibleConversations)
   const title = activeConversation?.title ?? 'New conversation'
 
   return <div className="chat-page">
@@ -398,15 +430,25 @@ export function ChatPage() {
       <Button className="chat-new" onClick={startNewConversation}><Plus size={16} />New chat</Button>
       <label className="history-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations" aria-label="Search conversations" /></label>
       <div className="conversation-list">
-        {visibleConversations.length ? visibleConversations.map((conversation) => <button key={conversation.id} className={`conversation-list-item ${conversation.id === routeConversationId ? 'active' : ''}`} onClick={() => selectConversation(conversation.id)}>
-          <MessageIcon /><span>{conversation.title}</span>
-        </button>) : <div className="history-empty"><MessageIcon /><p>{search ? 'No matches' : 'No chat history'}</p><span>{search ? 'Try a different search.' : 'Your conversations will appear here.'}</span></div>}
+        {visibleConversations.length ? groupedConversations.map((group) => <div key={group.label}>
+          <div className="conversation-group-label">{group.label}</div>
+          {group.conversations.map((conversation) => <button key={conversation.id} className={`conversation-list-item ${conversation.id === routeConversationId ? 'active' : ''}`} onClick={() => selectConversation(conversation.id)}>
+            <MessageIcon /><span>{conversation.title}</span>
+          </button>)}
+        </div>) : <div className="history-empty"><MessageIcon /><p>{search ? 'No matches' : 'No chat history'}</p><span>{search ? 'Try a different search.' : 'Your conversations will appear here.'}</span></div>}
       </div>
     </aside>
     <section className="conversation">
       <header className="conversation-header">
         <div className="conversation-heading">
-          {isRenaming ? <div className="conversation-rename"><input value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void saveConversationRename(); if (event.key === 'Escape') setIsRenaming(false) }} aria-label="Conversation title" autoFocus /><IconButton label="Save conversation title" onClick={() => void saveConversationRename()}><Save size={16} /></IconButton><IconButton label="Cancel rename" onClick={() => setIsRenaming(false)}><X size={16} /></IconButton></div> : <><h2>{title}</h2><span><Bot size={14} />Enterprise AI</span></>}
+          {isRenaming ? <div className="conversation-rename"><input value={renameTitle} onChange={(event) => setRenameTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void saveConversationRename(); if (event.key === 'Escape') setIsRenaming(false) }} aria-label="Conversation title" autoFocus /><IconButton label="Save conversation title" onClick={() => void saveConversationRename()}><Save size={16} /></IconButton><IconButton label="Cancel rename" onClick={() => setIsRenaming(false)}><X size={16} /></IconButton></div> : <>
+            <h2>{title}</h2>
+            <AgentSelector 
+              selectedAgentId={activeConversation?.agentId || selectedAgentId} 
+              onSelect={setSelectedAgentId} 
+              disabled={!!activeConversation} 
+            />
+          </>}
         </div>
         <div className="conversation-menu-wrap">
           <IconButton label="Conversation options" onClick={() => setMenuOpen((open) => !open)} disabled={!activeConversation || isDeleting}><MoreHorizontal size={19} /></IconButton>
@@ -414,7 +456,44 @@ export function ChatPage() {
         </div>
       </header>
       <div className="conversation-body">
-        {isLoadingConversation ? <LoadingState label="Loading conversation…" /> : loadError ? <ErrorState message={loadError} onRetry={() => routeConversationId && navigate(`/app/chat/${routeConversationId}`)} /> : messages.length ? <div ref={messageListRef} className="message-list" onScroll={onMessageListScroll} aria-live="polite">{messages.map((item) => <article key={item.id} className={`chat-message chat-message-${item.role.toLowerCase()} ${item.isStreaming || item.isThinking ? 'is-streaming' : ''}`}><span className="message-avatar">{item.role === 'USER' ? <UserRound size={15} /> : <Bot size={15} />}</span><div className="message-content"><span className="message-role">{item.role === 'USER' ? 'You' : 'Enterprise AI'}</span>{item.role === 'ASSISTANT' ? item.isThinking ? <div className="thinking-state"><LoaderCircle className="spin" size={14} />Thinking…</div> : <><div className="message-markdown"><ReactMarkdown components={{ a: MarkdownLink, pre: MarkdownCodeBlock }}>{item.content}</ReactMarkdown>{item.isStreaming && <span className="streaming-caret" aria-label="Generating" />}</div>{!item.isStreaming && <button className="message-copy" onClick={() => void copyAssistantResponse(item)}>{copiedMessageId === item.id ? <Check size={13} /> : <Copy size={13} />}{copiedMessageId === item.id ? 'Copied' : 'Copy'}</button>}</> : <><p>{item.content}</p>{item.streamError && <div className="message-error"><span>{item.streamError}</span><button onClick={() => void retryGeneration(item)} disabled={isStreaming}><RefreshCw size={13} />Retry</button></div>}</>}</div></article>)}<div ref={messagesEndRef} /></div> : <EmptyState icon={<Sparkles size={23} />} title="How can Enterprise AI help?" description="Ask a question, analyze a document, or delegate a task." />}
+        {isLoadingConversation ? <LoadingState label="Loading conversation…" /> : loadError ? <ErrorState message={loadError} onRetry={() => routeConversationId && navigate(`/app/chat/${routeConversationId}`)} /> : messages.length ? <div ref={messageListRef} className="message-list" onScroll={onMessageListScroll} aria-live="polite">{messages.map((item) => (
+          <article key={item.id} className={`chat-message chat-message-${item.role.toLowerCase()} ${item.isStreaming || item.isThinking ? 'is-streaming' : ''}`}>
+            <span className="message-avatar">{item.role === 'USER' ? <UserRound size={15} /> : <Bot size={15} />}</span>
+            <div className="message-content">
+              <span className="message-role">{item.role === 'USER' ? 'You' : 'Enterprise AI'}</span>
+              {item.role === 'ASSISTANT' ? item.isThinking ? <div className="thinking-state"><LoaderCircle className="spin" size={14} />{item.toolStatus || 'Thinking…'}</div> : (
+                <>
+                  <div className="message-markdown">
+                    <ReactMarkdown components={{ a: MarkdownLink, pre: MarkdownCodeBlock }}>{item.content}</ReactMarkdown>
+                    {item.isStreaming && <span className="streaming-caret" aria-label="Generating" />}
+                  </div>
+                  {item.citations && item.citations.length > 0 && (
+                    <div className="message-citations">
+                      <p className="citations-heading">Sources</p>
+                      <ul className="citations-list">
+                        {item.citations.map((cit, idx) => (
+                          <li key={idx} className="citation-item">
+                            <FileText size={12} /> {cit.fileName}
+                            <span className="citation-meta">
+                               (Score: {Math.round(cit.similarityScore * 100)}%
+                               {cit.pageNumber != null ? `, Page ${cit.pageNumber}` : `, Chunk ${cit.chunkIndex}`})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {!item.isStreaming && <button className="message-copy" onClick={() => void copyAssistantResponse(item)}>{copiedMessageId === item.id ? <Check size={13} /> : <Copy size={13} />}{copiedMessageId === item.id ? 'Copied' : 'Copy'}</button>}
+                </>
+              ) : (
+                <>
+                  <p>{item.content}</p>
+                  {item.streamError && <div className="message-error"><span>{item.streamError}</span><button onClick={() => void retryGeneration(item)} disabled={isStreaming}><RefreshCw size={13} />Retry</button></div>}
+                </>
+              )}
+            </div>
+          </article>
+        ))}<div ref={messagesEndRef} /></div> : <EmptyState icon={<Sparkles size={23} />} title="How can Enterprise AI help?" description="Ask a question, analyze a document, or delegate a task." />}
       </div>
       <div className="composer-wrap">
         {notice && <p className="chat-error" role="alert">{notice}</p>}
@@ -474,4 +553,28 @@ function MarkdownCodeBlock({ children }: { children?: ReactNode }) {
   }
 
   return <div className="markdown-code-block"><div className="markdown-code-toolbar"><span>{language ?? 'Code'}</span><button onClick={() => void copyCode()}><Copy size={12} />{copied ? 'Copied' : 'Copy'}</button></div><pre><code className={className}>{code}</code></pre></div>
+}
+
+function groupConversationsByTime(conversations: ConversationSummary[]) {
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000)
+  const weekStart = new Date(todayStart.getTime() - 7 * 86400000)
+
+  const groups: { label: string; conversations: ConversationSummary[] }[] = [
+    { label: 'Today', conversations: [] },
+    { label: 'Yesterday', conversations: [] },
+    { label: 'This Week', conversations: [] },
+    { label: 'Older', conversations: [] },
+  ]
+
+  for (const conversation of conversations) {
+    const date = new Date(conversation.createdAt)
+    if (date >= todayStart) groups[0].conversations.push(conversation)
+    else if (date >= yesterdayStart) groups[1].conversations.push(conversation)
+    else if (date >= weekStart) groups[2].conversations.push(conversation)
+    else groups[3].conversations.push(conversation)
+  }
+
+  return groups.filter((group) => group.conversations.length > 0)
 }

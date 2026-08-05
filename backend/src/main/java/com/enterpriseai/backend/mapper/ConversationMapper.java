@@ -30,5 +30,6 @@ public interface ConversationMapper {
     @Mapping(target = "title", source = "conversation.title")
     @Mapping(target = "createdAt", source = "conversation.createdAt")
     @Mapping(target = "updatedAt", source = "conversation.updatedAt")
+    @Mapping(target = "agentId", source = "conversation.agentId")
     ConversationResponse toConversationResponse(Conversation conversation, List<ChatMessageResponse> messages);
 }

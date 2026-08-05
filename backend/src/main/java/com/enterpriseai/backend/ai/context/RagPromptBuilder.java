@@ -28,12 +28,12 @@ public class RagPromptBuilder {
         this.properties = properties;
     }
 
-    public AiChatRequest build(AiChatRequest historyRequest, String retrievalContext) {
-        if (retrievalContext == null || retrievalContext.isBlank()) {
-            return historyRequest;
-        }
+    public AiChatRequest build(com.enterpriseai.backend.ai.agent.Agent agent, AiChatRequest historyRequest, String retrievalContext) {
+        String systemPrompt = agent.systemPrompt();
 
-        String systemPrompt = INSTRUCTIONS;
+        if (retrievalContext == null || retrievalContext.isBlank()) {
+            return new AiChatRequest(historyRequest.messages(), agent.temperature(), agent.topP(), agent.model());
+        }
 
         String currentQuestion = "";
         List<AiMessage> pastMessages = new ArrayList<>();
@@ -79,6 +79,6 @@ public class RagPromptBuilder {
         messages.add(new AiMessage(AiMessageRole.SYSTEM, systemPrompt));
         messages.add(new AiMessage(AiMessageRole.USER, userPrompt.toString()));
 
-        return new AiChatRequest(List.copyOf(messages));
+        return new AiChatRequest(List.copyOf(messages), agent.temperature(), agent.topP(), agent.model());
     }
 }

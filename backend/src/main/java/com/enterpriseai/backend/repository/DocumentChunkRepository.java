@@ -19,4 +19,6 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
     @Transactional
     @Query("delete from DocumentChunk chunk where chunk.document.id = :documentId")
     void deleteByDocumentId(@Param("documentId") Long documentId);
+
+    int countByDocumentId(Long documentId);
 }

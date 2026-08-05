@@ -35,7 +35,8 @@ class SemanticSearchServiceIntegrationTest {
         SemanticSearchService service = new SemanticSearchService(
                 new QueryEmbeddingService(provider),
                 vectorStore,
-                new RetrievalProperties(true, 3, 0.75, 2, 2, 1000, 1000, true, true, "STRICT"));
+                new RetrievalProperties(true, 3, 0.75, 2, 2, 1000, 1000, true, true, "STRICT"),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
 
         List<RetrievedChunk> results = service.search("benefits", 7L);
 

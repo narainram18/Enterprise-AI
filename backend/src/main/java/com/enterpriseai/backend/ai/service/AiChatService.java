@@ -28,6 +28,9 @@ import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.repository.ChatMessageRepository;
 import com.enterpriseai.backend.service.ConversationService;
 
+import com.enterpriseai.backend.ai.agent.Agent;
+import com.enterpriseai.backend.ai.agent.AgentRegistry;
+
 @Service
 public class AiChatService {
 
@@ -38,15 +41,17 @@ public class AiChatService {
     private final AiChatProperties properties;
     private final ChatContextExtension chatContextExtension;
     private final ChatRetrievalService chatRetrievalService;
+    private final AgentRegistry agentRegistry;
 
     public AiChatService(
             ConversationService conversationService,
             ChatMessageRepository chatMessageRepository,
             ConversationMapper conversationMapper,
             AiProvider aiProvider,
-            AiChatProperties properties) {
+            AiChatProperties properties,
+            AgentRegistry agentRegistry) {
         this(conversationService, chatMessageRepository, conversationMapper, aiProvider,
-                properties, (historyRequest, retrievalContext) -> historyRequest, null);
+                properties, (agent, historyRequest, retrievalContext) -> historyRequest, null, agentRegistry);
     }
 
     @Autowired
@@ -57,7 +62,8 @@ public class AiChatService {
             AiProvider aiProvider,
             AiChatProperties properties,
             ChatContextExtension chatContextExtension,
-            ChatRetrievalService chatRetrievalService) {
+            ChatRetrievalService chatRetrievalService,
+            AgentRegistry agentRegistry) {
         this.conversationService = conversationService;
         this.chatMessageRepository = chatMessageRepository;
         this.conversationMapper = conversationMapper;
@@ -65,6 +71,7 @@ public class AiChatService {
         this.properties = properties;
         this.chatContextExtension = chatContextExtension;
         this.chatRetrievalService = chatRetrievalService;
+        this.agentRegistry = agentRegistry;
     }
 
     public AiChatService(
@@ -73,9 +80,10 @@ public class AiChatService {
             ConversationMapper conversationMapper,
             AiProvider aiProvider,
             AiChatProperties properties,
-            ChatContextExtension chatContextExtension) {
+            ChatContextExtension chatContextExtension,
+            AgentRegistry agentRegistry) {
         this(conversationService, chatMessageRepository, conversationMapper, aiProvider,
-                properties, chatContextExtension, null);
+                properties, chatContextExtension, null, agentRegistry);
     }
 
     public AiChatTurnResponse chat(
@@ -87,9 +95,14 @@ public class AiChatService {
                 conversationId,
                 currentUserEmail,
                 request);
+                
+        Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
 
-        ChatRetrievalResult retrieval = retrieve(request.getContent(), currentUserEmail);
-        AiChatRequest aiRequest = buildContextRequest(conversationId, retrieval.context());
+        ChatRetrievalResult retrieval = agent.supportsRag() 
+                ? retrieve(request.getContent(), currentUserEmail) 
+                : ChatRetrievalResult.empty(false);
+                
+        AiChatRequest aiRequest = buildContextRequest(agent, conversationId, retrieval.context());
 
         String assistantContent = generateResponse(aiRequest);
 
@@ -113,8 +126,8 @@ public class AiChatService {
         return toAiChatRequest(contextMessages);
     }
 
-    AiChatRequest buildContextRequest(Long conversationId, String retrievalContext) {
-        return chatContextExtension.extend(buildContextRequest(conversationId), retrievalContext);
+    AiChatRequest buildContextRequest(Agent agent, Long conversationId, String retrievalContext) {
+        return chatContextExtension.extend(agent, buildContextRequest(conversationId), retrievalContext);
     }
 
     ChatRetrievalResult retrieve(String query, String currentUserEmail) {
@@ -144,7 +157,7 @@ public class AiChatService {
                         message.getContent()))
                 .toList();
 
-        return new AiChatRequest(aiMessages);
+        return new AiChatRequest(aiMessages, null, null, null);
     }
 
     private String generateResponse(AiChatRequest request) {

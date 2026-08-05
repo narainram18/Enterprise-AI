@@ -17,5 +17,6 @@ public class ConversationResponse {
     private String title;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String agentId;
     private List<ChatMessageResponse> messages;
 }

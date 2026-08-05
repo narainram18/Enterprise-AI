@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import com.enterpriseai.backend.ai.config.OllamaProperties;
 import com.enterpriseai.backend.ai.model.AiChatRequest;
@@ -52,13 +53,26 @@ public class OllamaAiProvider implements AiProvider {
     @Override
     public String generate(AiChatRequest request) {
 
+        Map<String, Object> options = new java.util.HashMap<>();
+        if (request.temperature() != null) {
+            options.put("temperature", request.temperature());
+        }
+        if (request.topP() != null) {
+            options.put("top_p", request.topP());
+        }
+
+        String model = request.model() != null && !request.model().isBlank() 
+                ? request.model() 
+                : properties.model();
+
         OllamaChatRequest ollamaRequest = new OllamaChatRequest(
-                properties.model(),
+                model,
                 request.messages().stream()
                         .map(this::toOllamaMessage)
                         .toList(),
                 false,
-                false
+                false,
+                options.isEmpty() ? null : options
         );
         
         log.info("Prompt sent to Ollama:");
@@ -105,19 +119,38 @@ public class OllamaAiProvider implements AiProvider {
     @Override
     public boolean stream(AiChatRequest request, AiStreamHandler handler) {
 
+        Map<String, Object> options = new java.util.HashMap<>();
+        if (request.temperature() != null) {
+            options.put("temperature", request.temperature());
+        }
+        if (request.topP() != null) {
+            options.put("top_p", request.topP());
+        }
+
+        String model = request.model() != null && !request.model().isBlank() 
+                ? request.model() 
+                : properties.model();
+
         OllamaChatRequest ollamaRequest = new OllamaChatRequest(
-                properties.model(),
+                model,
                 request.messages().stream()
                         .map(this::toOllamaMessage)
                         .toList(),
                 true,
-                false
+                false,
+                options.isEmpty() ? null : options
         );
 
         boolean[] completed = {false};
         log.info("Prompt sent to Ollama:");
         for (AiMessage msg : request.messages()) {
             log.info("{}:\n{}", msg.role(), msg.content());
+        }
+        
+        try {
+            log.info("Ollama JSON Payload: {}", objectMapper.writeValueAsString(ollamaRequest));
+        } catch (Exception e) {
+            log.error("Failed to serialize Ollama request", e);
         }
 
         try {
@@ -127,6 +160,8 @@ public class OllamaAiProvider implements AiProvider {
                     .body(ollamaRequest)
                     .exchange((clientRequest, clientResponse) -> {
                         if (!clientResponse.getStatusCode().is2xxSuccessful()) {
+                            String body = new String(clientResponse.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            log.error("Ollama Stream HTTP Error: {} {}", clientResponse.getStatusCode().value(), body);
                             throw providerResponseException(clientResponse.getStatusCode().value());
                         }
 
@@ -208,6 +243,11 @@ public class OllamaAiProvider implements AiProvider {
             int statusCode,
             Throwable cause) {
         String message;
+        if (cause instanceof RestClientResponseException rce) {
+            log.error("Ollama HTTP Error: {} {}", statusCode, rce.getResponseBodyAsString());
+        } else {
+            log.error("Ollama Error: {} {}", statusCode, cause);
+        }
         if (statusCode == 404) {
             message = "AI model is unavailable";
         } else if (statusCode >= 400 && statusCode < 500) {

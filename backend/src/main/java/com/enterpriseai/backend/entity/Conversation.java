@@ -32,4 +32,7 @@ public class Conversation extends BaseEntity {
 
     @Column(nullable = false)
     private String title;
+
+    @Column(name = "agent_id", nullable = false)
+    private String agentId = "general-assistant";
 }

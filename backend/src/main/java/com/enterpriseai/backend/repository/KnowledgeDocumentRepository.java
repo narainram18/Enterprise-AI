@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.enterpriseai.backend.entity.KnowledgeDocument;
 
-public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocument, Long> {
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocument, Long>, JpaSpecificationExecutor<KnowledgeDocument> {
 
     Page<KnowledgeDocument> findByWorkspaceIdOrderByCreatedAtDesc(Long workspaceId, Pageable pageable);
 

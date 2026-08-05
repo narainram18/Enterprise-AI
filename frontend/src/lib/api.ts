@@ -10,13 +10,15 @@ export type AuthTokens = { token: string; refreshToken: string }
 export type UserProfile = { id: number; name: string; email: string; role: string }
 export type PageResponse<T> = { content: T[]; page: number; size: number; totalElements: number; totalPages: number; first: boolean; last: boolean }
 export type MessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM'
-export type ChatMessageResponse = { id: number; role: MessageRole; content: string; createdAt: string }
-export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string }
+export type RetrievalCitation = { documentId: number; fileName: string; chunkIndex: number; pageNumber?: number; similarityScore: number }
+export type ChatMessageResponse = { id: number; role: MessageRole; content: string; createdAt: string; citations?: RetrievalCitation[] }
+export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string; agentId: string }
 export type ConversationResponse = ConversationSummary & { messages: ChatMessageResponse[] }
+export type Agent = { id: string; name: string; description: string; icon: string; color: string; systemPrompt: string; supportsRag: boolean; supportsStreaming: boolean }
 export type AiChatTurnResponse = { userMessage: ChatMessageResponse; assistantMessage: ChatMessageResponse }
 export type WorkspaceResponse = { id: number; name: string; createdAt: string; updatedAt: string }
 export type DocumentType = 'PDF' | 'DOCX' | 'TXT'
-export type DocumentProcessingStatus = 'UPLOADED' | 'PROCESSING' | 'READY' | 'FAILED'
+export type DocumentProcessingStatus = 'UPLOADED' | 'EXTRACTING_TEXT' | 'CHUNKING' | 'CREATING_EMBEDDINGS' | 'STORING_VECTORS' | 'READY' | 'FAILED'
 export type DocumentResponse = {
   id: number
   originalFileName: string
@@ -25,6 +27,10 @@ export type DocumentResponse = {
   documentType: DocumentType
   processingStatus: DocumentProcessingStatus
   extractionError: string | null
+  uploaderName: string
+  workspaceName: string
+  chunkCount: number
+  lastIndexedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -38,6 +44,7 @@ export type DocumentTextResponse = {
 export type StreamCallbacks = {
   onUserMessage: (message: ChatMessageResponse) => void
   onToken: (token: string) => void
+  onToolProgress?: (toolName: string) => void
   onComplete: (message: ChatMessageResponse) => void
   onError: (message: string) => void
 }
@@ -151,9 +158,13 @@ export const usersApi = {
 export const conversationsApi = {
   list: (params: { page?: number; size?: number } = {}) => api.get<ApiResponse<PageResponse<ConversationSummary>>>('/conversations', { params }),
   get: (conversationId: number) => api.get<ApiResponse<ConversationResponse>>(`/conversations/${conversationId}`),
-  create: (title?: string) => api.post<ApiResponse<ConversationSummary>>('/conversations', { title }),
+  create: (title?: string, agentId?: string) => api.post<ApiResponse<ConversationSummary>>('/conversations', { title, agentId }),
   rename: (conversationId: number, title: string) => api.patch<ApiResponse<ConversationSummary>>(`/conversations/${conversationId}`, { title }),
   delete: (conversationId: number) => api.delete<ApiResponse<null>>(`/conversations/${conversationId}`),
+}
+
+export const agentsApi = {
+  list: () => api.get<Agent[]>('/agents'),
 }
 
 export const documentsApi = {
@@ -164,10 +175,12 @@ export const documentsApi = {
     if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
     return { data: await response.json() as ApiResponse<DocumentResponse> }
   },
-  list: async (params: { page?: number; size?: number } = {}) => {
+  list: async (params: { page?: number; size?: number; originalFileName?: string; documentType?: DocumentType | 'ALL' } = {}) => {
     const query = new URLSearchParams()
     if (params.page !== undefined) query.set('page', params.page.toString())
     if (params.size !== undefined) query.set('size', params.size.toString())
+    if (params.originalFileName) query.set('originalFileName', params.originalFileName)
+    if (params.documentType && params.documentType !== 'ALL') query.set('documentType', params.documentType)
     const qs = query.toString()
     const response = await authenticatedFetch(`/documents${qs ? `?${qs}` : ''}`, { method: 'GET' })
     if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
@@ -187,6 +200,21 @@ export const documentsApi = {
     const response = await authenticatedFetch(`/documents/${documentId}`, { method: 'DELETE' })
     if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
     return { data: await response.json() as ApiResponse<null> }
+  },
+  download: async (documentId: number) => {
+    const response = await authenticatedFetch(`/documents/${documentId}/download`, { method: 'GET' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return await response.blob()
+  },
+  rename: async (documentId: number, name: string) => {
+    const response = await authenticatedFetch(`/documents/${documentId}/rename`, { method: 'PATCH', body: JSON.stringify({ name }), headers: { 'Content-Type': 'application/json' } })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<DocumentResponse> }
+  },
+  retry: async (documentId: number) => {
+    const response = await authenticatedFetch(`/documents/${documentId}/retry`, { method: 'POST' })
+    if (!response.ok) throw new ApiRequestError(await readErrorMessage(response), response.status)
+    return { data: await response.json() as ApiResponse<DocumentResponse> }
   },
 }
 
@@ -293,6 +321,7 @@ async function consumeConversationStream(
   const dispatch = (event: SseEvent) => {
     if (event.event === 'user_message') callbacks.onUserMessage(parseJsonPayload<ChatMessageResponse>(event))
     else if (event.event === 'token') callbacks.onToken(event.data)
+    else if (event.event === 'tool_progress') callbacks.onToolProgress?.(event.data)
     else if (event.event === 'complete') { completed = true; console.debug('[SSE] complete received'); callbacks.onComplete(parseJsonPayload<ChatMessageResponse>(event)) }
     else if (event.event === 'error') {
       serverError = true

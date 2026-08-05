@@ -19,6 +19,7 @@ import com.enterpriseai.backend.common.ApiResponse;
 import com.enterpriseai.backend.common.PageResponse;
 import com.enterpriseai.backend.document.service.DocumentService;
 import com.enterpriseai.backend.dto.DocumentResponse;
+import com.enterpriseai.backend.dto.DocumentDetailsResponse;
 import com.enterpriseai.backend.dto.DocumentTextResponse;
 
 @RestController
@@ -32,22 +33,25 @@ public class DocumentController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<DocumentResponse>> upload(
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> upload(
             @RequestParam("file") MultipartFile file, Authentication authentication) {
-        DocumentResponse response = documentService.upload(authentication.getName(), file);
+        DocumentDetailsResponse response = documentService.upload(authentication.getName(), file);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, "Document uploaded successfully", response));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<DocumentResponse>>> list(
-            Pageable pageable, Authentication authentication) {
-        Page<DocumentResponse> page = documentService.list(authentication.getName(), pageable);
+    public ResponseEntity<ApiResponse<PageResponse<DocumentDetailsResponse>>> list(
+            Pageable pageable, 
+            @RequestParam(required = false) String originalFileName,
+            @RequestParam(required = false) com.enterpriseai.backend.entity.DocumentType documentType,
+            Authentication authentication) {
+        Page<DocumentDetailsResponse> page = documentService.list(authentication.getName(), pageable, originalFileName, documentType);
         return ResponseEntity.ok(new ApiResponse<>(true, "Documents fetched successfully", PageResponse.from(page)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<DocumentResponse>> get(
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> get(
             @PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(new ApiResponse<>(true, "Document fetched successfully",
                 documentService.get(authentication.getName(), id)));
@@ -58,6 +62,40 @@ public class DocumentController {
             @PathVariable Long id, Authentication authentication) {
         return ResponseEntity.ok(new ApiResponse<>(true, "Document text fetched successfully",
                 documentService.getText(authentication.getName(), id)));
+    }
+    
+    @GetMapping("/{id}/download")
+    public ResponseEntity<org.springframework.core.io.Resource> download(
+            @PathVariable Long id, Authentication authentication) {
+        java.io.InputStream inputStream = documentService.download(authentication.getName(), id);
+        org.springframework.core.io.InputStreamResource resource = new org.springframework.core.io.InputStreamResource(inputStream);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"document-" + id + "\"")
+                .body(resource);
+    }
+
+    @PostMapping("/{id}/retry")
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> retry(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Document processing retried",
+                documentService.retryProcessing(authentication.getName(), id)));
+    }
+
+    @PostMapping("/{id}/reindex")
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> reindex(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Document re-indexing triggered",
+                documentService.retryProcessing(authentication.getName(), id)));
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/{id}/rename")
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> rename(
+            @PathVariable Long id, 
+            @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Document renamed successfully",
+                documentService.rename(authentication.getName(), id, body.get("name"))));
     }
 
     @DeleteMapping("/{id}")

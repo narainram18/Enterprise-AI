@@ -140,7 +140,7 @@ public class GlobalExceptionHandler {
             Exception ex, jakarta.servlet.http.HttpServletResponse response) {
 
         log.error("Unhandled request exception status=500 exception={}",
-                ex.getClass().getSimpleName());
+                ex.getClass().getSimpleName(), ex);
 
         if (response.isCommitted()) {
             log.warn("Response already committed. Ignoring exception to prevent malformed JSON.");
@@ -148,6 +148,6 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("Something went wrong"));
+                .body(new ErrorResponse(ex.getMessage() != null ? ex.getMessage() : "Internal server error"));
     }
 }

@@ -80,7 +80,7 @@ public class HybridSearchService implements RetrievalPipeline {
         // Update similarity score in the returned chunks to reflect RRF score
         List<RetrievedChunk> rrfRankedChunks = fusedResults.stream().map(c -> 
             new RetrievedChunk(
-                c.documentId(), c.chunkId(), c.chunkIndex(),
+                c.documentId(), c.chunkId(), c.chunkIndex(), c.pageNumber(),
                 rrfScores.get(c.chunkId()), // Use RRF score
                 c.documentFileName(), c.documentType(), c.chunkText(), c.workspaceId()
             )

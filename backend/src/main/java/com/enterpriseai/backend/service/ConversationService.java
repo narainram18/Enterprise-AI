@@ -77,6 +77,10 @@ public class ConversationService {
         conversation.setWorkspace(workspace);
         conversation.setTitle(title);
         
+        if (request.getAgentId() != null && !request.getAgentId().isBlank()) {
+            conversation.setAgentId(request.getAgentId());
+        }
+        
         conversation = conversationRepository.save(conversation);
         return conversationMapper.toSummaryResponse(conversation);
     }

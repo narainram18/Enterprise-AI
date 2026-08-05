@@ -150,6 +150,24 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- Observability (Actuator & Micrometer) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- Structured Logging -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- AOP for Cache Logging -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

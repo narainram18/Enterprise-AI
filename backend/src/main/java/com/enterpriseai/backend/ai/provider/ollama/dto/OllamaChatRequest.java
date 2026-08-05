@@ -1,11 +1,13 @@
 package com.enterpriseai.backend.ai.provider.ollama.dto;
 
+import java.util.Map;
 import java.util.List;
 
 public record OllamaChatRequest(
         String model,
         List<OllamaMessage> messages,
         boolean stream,
-        boolean think
+        boolean think,
+        Map<String, Object> options
 ) {
 }

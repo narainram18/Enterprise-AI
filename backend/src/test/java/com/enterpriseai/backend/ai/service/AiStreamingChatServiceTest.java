@@ -34,6 +34,9 @@ import com.enterpriseai.backend.entity.MessageRole;
 import com.enterpriseai.backend.exception.ResourceNotFoundException;
 import com.enterpriseai.backend.mapper.ConversationMapper;
 import com.enterpriseai.backend.service.ConversationService;
+import com.enterpriseai.backend.ai.agent.AgentRegistry;
+import com.enterpriseai.backend.ai.agent.Agent;
+import com.enterpriseai.backend.entity.Conversation;
 
 @ExtendWith(MockitoExtension.class)
 class AiStreamingChatServiceTest {
@@ -50,6 +53,12 @@ class AiStreamingChatServiceTest {
     @Mock
     private AiProvider aiProvider;
 
+    @Mock
+    private AgentRegistry agentRegistry;
+    
+    @Mock
+    private com.enterpriseai.backend.ai.tool.ToolExecutor toolExecutor;
+
     private AiStreamingChatService streamingChatService;
 
     @BeforeEach
@@ -61,7 +70,11 @@ class AiStreamingChatServiceTest {
                 conversationMapper,
                 aiProvider,
                 new AiChatProperties(2, 120000, 1000, 2000, 4000),
-                directExecutor);
+                directExecutor,
+                null,
+                agentRegistry,
+                toolExecutor,
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
     }
 
     @Test
@@ -72,11 +85,12 @@ class AiStreamingChatServiceTest {
         ChatMessageResponse userResponse = response(userMessage);
         ChatMessageResponse assistantResponse = response(assistantMessage);
         AiChatRequest aiRequest = new AiChatRequest(List.of(
-                new AiMessage(AiMessageRole.USER, request.getContent())));
+                new AiMessage(AiMessageRole.USER, request.getContent())), null, null, null);
 
         when(conversationService.saveUserMessage(42L, "user@example.com", request))
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L)).thenReturn(aiRequest);
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(userResponse);
         when(aiProvider.stream(eq(aiRequest), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
@@ -94,8 +108,9 @@ class AiStreamingChatServiceTest {
 
         streamingChatService.stream(42L, "user@example.com", request);
 
-        InOrder order = inOrder(conversationService, aiChatService, aiProvider);
+        InOrder order = inOrder(conversationService, aiChatService, aiProvider, agentRegistry);
         order.verify(conversationService).saveUserMessage(42L, "user@example.com", request);
+        order.verify(agentRegistry).getAgent("general-assistant");
         order.verify(aiChatService).buildContextRequest(42L);
         order.verify(aiProvider).stream(eq(aiRequest), any(AiStreamHandler.class));
         order.verify(conversationService).saveAssistantMessage(
@@ -117,7 +132,8 @@ class AiStreamingChatServiceTest {
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L))
                 .thenReturn(new AiChatRequest(List.of(
-                        new AiMessage(AiMessageRole.USER, request.getContent()))));
+                        new AiMessage(AiMessageRole.USER, request.getContent())), null, null, null));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(response(userMessage));
         when(aiProvider.stream(any(AiChatRequest.class), any(AiStreamHandler.class)))
                 .thenThrow(new AiGenerationException("AI provider is unavailable"));
@@ -150,7 +166,8 @@ class AiStreamingChatServiceTest {
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L))
                 .thenReturn(new AiChatRequest(List.of(
-                        new AiMessage(AiMessageRole.USER, request.getContent()))));
+                        new AiMessage(AiMessageRole.USER, request.getContent())), null, null, null));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(response(userMessage));
         when(aiProvider.stream(any(AiChatRequest.class), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
@@ -169,11 +186,12 @@ class AiStreamingChatServiceTest {
         ChatMessage userMessage = message(7L, MessageRole.USER, "Retry this response");
         ChatMessage assistantMessage = message(8L, MessageRole.ASSISTANT, "A regenerated response");
         AiChatRequest aiRequest = new AiChatRequest(List.of(
-                new AiMessage(AiMessageRole.USER, userMessage.getContent())));
+                new AiMessage(AiMessageRole.USER, userMessage.getContent())), null, null, null);
 
         when(conversationService.getUserMessage(42L, 7L, "user@example.com"))
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L)).thenReturn(aiRequest);
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
         when(aiProvider.stream(eq(aiRequest), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
                     AiStreamHandler handler = invocation.getArgument(1);
@@ -209,6 +227,9 @@ class AiStreamingChatServiceTest {
         message.setRole(role);
         message.setContent(content);
         message.setCreatedAt(LocalDateTime.now());
+        Conversation conversation = new Conversation();
+        conversation.setAgentId("general-assistant");
+        message.setConversation(conversation);
         return message;
     }
 

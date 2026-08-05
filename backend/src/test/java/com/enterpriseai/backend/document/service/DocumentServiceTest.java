@@ -27,6 +27,8 @@ import com.enterpriseai.backend.document.extractor.TextExtractionException;
 import com.enterpriseai.backend.document.extractor.TextExtractionService;
 import com.enterpriseai.backend.document.storage.FileStorageService;
 import com.enterpriseai.backend.dto.DocumentResponse;
+import com.enterpriseai.backend.dto.DocumentDetailsResponse;
+import org.springframework.data.jpa.domain.Specification;
 import com.enterpriseai.backend.dto.DocumentTextResponse;
 import com.enterpriseai.backend.entity.DocumentChunk;
 import com.enterpriseai.backend.entity.DocumentProcessingStatus;
@@ -68,7 +70,7 @@ class DocumentServiceTest {
         documentService = new DocumentService(
                 userRepository, documentRepository, fileStorageService, textExtractionService,
                 new DocumentUploadProperties(10_485_760), textChunkingService, documentChunkRepository,
-                documentEmbeddingService, workspaceRepository);
+                documentEmbeddingService, workspaceRepository, new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
 
         user = new User();
         user.setId(7L);
@@ -110,7 +112,7 @@ class DocumentServiceTest {
                 .thenReturn(new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)));
         when(textExtractionService.extract(any(), any())).thenReturn("hello");
 
-        DocumentResponse response = documentService.upload(
+        DocumentDetailsResponse response = documentService.upload(
                 "owner@example.com", file("notes.txt", "hello", "text/plain"));
 
         assertEquals(DocumentProcessingStatus.READY, response.processingStatus());
@@ -160,7 +162,7 @@ class DocumentServiceTest {
         when(textChunkingService.createChunks(any(), any()))
                 .thenThrow(new RuntimeException("chunking failed"));
 
-        DocumentResponse response = documentService.upload(
+        DocumentDetailsResponse response = documentService.upload(
                 "owner@example.com", file("doc.txt", "content", "text/plain"));
 
         assertEquals(DocumentProcessingStatus.FAILED, response.processingStatus());
@@ -179,7 +181,7 @@ class DocumentServiceTest {
         when(textExtractionService.extract(any(), any()))
                 .thenThrow(new TextExtractionException("No meaningful text found"));
 
-        DocumentResponse response = documentService.upload(
+        DocumentDetailsResponse response = documentService.upload(
                 "owner@example.com", file("broken.txt", "bad", "text/plain"));
 
         assertEquals(DocumentProcessingStatus.FAILED, response.processingStatus());
@@ -211,13 +213,13 @@ class DocumentServiceTest {
     @Test
     void listsOnlyDocumentsForResolvedUser() {
         KnowledgeDocument document = readyDocument();
-        when(documentRepository.findByWorkspaceIdOrderByCreatedAtDesc(100L, PageRequest.of(0, 10)))
+        when(documentRepository.findAll(any(Specification.class), eq(PageRequest.of(0, 10))))
                 .thenReturn(new PageImpl<>(List.of(document)));
 
-        var page = documentService.list("owner@example.com", PageRequest.of(0, 10));
+        var page = documentService.list("owner@example.com", PageRequest.of(0, 10), null, null);
 
         assertEquals(1, page.getTotalElements());
-        verify(documentRepository).findByWorkspaceIdOrderByCreatedAtDesc(100L, PageRequest.of(0, 10));
+        verify(documentRepository).findAll(any(Specification.class), eq(PageRequest.of(0, 10)));
     }
 
     @Test

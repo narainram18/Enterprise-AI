@@ -34,7 +34,7 @@ class OllamaAiProviderIntegrationTest {
                                 AiMessageRole.USER,
                                 "Reply with exactly these two words: OLLAMA WORKS"
                         )
-                ))
+                ), null, null, null)
         );
 
         System.out.println("AI RESPONSE: " + response);
