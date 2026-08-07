@@ -1,5 +1,5 @@
 import { Children, isValidElement, useEffect, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
-import { Bot, Check, CircleStop, Copy, Download, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Pin, Plus, RefreshCw, Save, Search, Send, Star, Trash2, UserRound, X, FileUp, Sparkles as SparklesIcon, Keyboard, MessageSquare } from 'lucide-react'
+import { Bot, Check, CircleStop, Copy, Download, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Pin, Plus, RefreshCw, Save, Search, Send, Star, Trash2, UserRound, X, FileUp, Sparkles as SparklesIcon, MessageSquare } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -689,14 +689,13 @@ export function ChatPage() {
             value={message} 
             onChange={(event) => { setMessage(event.target.value); setNotice('') }} 
             onKeyDown={onKeyDown} 
-            placeholder="Ask anything... (Press Enter to send)" 
+            placeholder="Message Enterprise AI..." 
             aria-label="Message Enterprise AI" 
             rows={1} 
             disabled={isStreaming} 
             className="composer-textarea custom-scrollbar"
           />
           <div className="composer-actions">
-            {!message.trim() && <div className="composer-shortcut-hint"><Keyboard size={14} /> <span>Return to send</span></div>}
             <Button onClick={() => void sendMessage()} disabled={!message.trim() || isStreaming} aria-label="Send message" className="composer-send-btn">
               {isStreaming ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
             </Button>
