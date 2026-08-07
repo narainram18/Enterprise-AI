@@ -18,5 +18,8 @@ public class ConversationResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String agentId;
+    private boolean pinned;
+    private boolean favorite;
+    private boolean archived;
     private List<ChatMessageResponse> messages;
 }

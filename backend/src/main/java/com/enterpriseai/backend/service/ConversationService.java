@@ -13,7 +13,7 @@ import com.enterpriseai.backend.dto.ConversationResponse;
 import com.enterpriseai.backend.dto.ConversationSummaryResponse;
 import com.enterpriseai.backend.dto.CreateConversationRequest;
 import com.enterpriseai.backend.dto.CreateMessageRequest;
-import com.enterpriseai.backend.dto.RenameConversationRequest;
+import com.enterpriseai.backend.dto.UpdateConversationRequest;
 import com.enterpriseai.backend.entity.ChatMessage;
 import com.enterpriseai.backend.entity.Conversation;
 import com.enterpriseai.backend.entity.MessageRole;
@@ -51,12 +51,12 @@ public class ConversationService {
     }
 
     private User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private Conversation getConversationByIdAndWorkspace(Long conversationId) {
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         return conversationRepository.findByIdAndWorkspaceId(conversationId, context.getWorkspaceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found in workspace"));
     }
@@ -64,7 +64,7 @@ public class ConversationService {
     @Transactional
     public ConversationSummaryResponse createConversation(String currentUserEmail, CreateConversationRequest request) {
         User user = getUserByEmail(currentUserEmail);
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
 
         String title = request.getTitle();
@@ -87,7 +87,7 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public Page<ConversationSummaryResponse> getConversations(String currentUserEmail, Pageable pageable) {
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         return conversationRepository.findByWorkspaceIdOrderByUpdatedAtDesc(context.getWorkspaceId(), pageable)
                 .map(conversationMapper::toSummaryResponse);
     }
@@ -103,10 +103,22 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationSummaryResponse renameConversation(Long conversationId, String currentUserEmail, RenameConversationRequest request) {
+    public ConversationSummaryResponse updateConversation(Long conversationId, String currentUserEmail, UpdateConversationRequest request) {
         Conversation conversation = getConversationByIdAndWorkspace(conversationId);
         
-        conversation.setTitle(request.getTitle());
+        if (request.getTitle() != null) {
+            conversation.setTitle(request.getTitle());
+        }
+        if (request.getPinned() != null) {
+            conversation.setPinned(request.getPinned());
+        }
+        if (request.getFavorite() != null) {
+            conversation.setFavorite(request.getFavorite());
+        }
+        if (request.getArchived() != null) {
+            conversation.setArchived(request.getArchived());
+        }
+        
         conversation = conversationRepository.save(conversation);
         
         return conversationMapper.toSummaryResponse(conversation);
@@ -142,6 +154,25 @@ public class ConversationService {
         conversationRepository.save(conversation);
         
         return message;
+    }
+
+    @Transactional
+    public ChatMessageResponse editMessage(Long conversationId, Long messageId, String currentUserEmail, String newContent) {
+        Conversation conversation = getConversationByIdAndWorkspace(conversationId);
+        
+        ChatMessage message = chatMessageRepository.findByIdAndConversationIdAndRole(
+                        messageId,
+                        conversation.getId(),
+                        MessageRole.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("User message not found"));
+                
+        message.setContent(newContent);
+        message = chatMessageRepository.save(message);
+        
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+        
+        return conversationMapper.toMessageResponse(message);
     }
 
     @Transactional

@@ -33,7 +33,10 @@ public class AgentRegistry {
                 null,
                 true,
                 true,
-                java.util.List.of("workspace_info")
+                java.util.List.of("list_documents", "workspace_info"),
+                "General Q&A, Writing, Brainstorming",
+                "Ask me anything about your workspace, or let's brainstorm ideas together.",
+                java.util.List.of("What documents are in my workspace?", "Help me brainstorm ideas")
         ));
 
         agents.put("research-assistant", new Agent(
@@ -51,7 +54,10 @@ public class AgentRegistry {
                 null,
                 true,
                 true,
-                java.util.List.of("search_documents", "retrieve_document")
+                java.util.List.of("search_documents", "retrieve_document", "summarize_document"),
+                "Research, PDFs, Knowledge Base",
+                "Upload documents and I'll answer using citations.",
+                java.util.List.of("Summarize my uploaded documents", "Compare two documents", "Find HR policy")
         ));
 
         agents.put("coding-assistant", new Agent(
@@ -70,7 +76,10 @@ public class AgentRegistry {
                 null,
                 true,
                 true,
-                java.util.List.of("conversation_summary")
+                java.util.List.of("code_analysis", "explain_code", "generate_code"),
+                "Programming, Debugging, Code Review",
+                "Ask me to build APIs, debug code, review architecture, or explain algorithms.",
+                java.util.List.of("Build Spring Boot API", "Review this code", "Optimize my React component")
         ));
 
         agents.put("sql-assistant", new Agent(
@@ -87,9 +96,12 @@ public class AgentRegistry {
                 0.1,
                 0.7,
                 null,
-                false, // maybe doesn't need RAG as much, but let's say false or true based on context
+                false, 
                 true,
-                java.util.List.of()
+                java.util.List.of("generate_sql", "explain_sql"),
+                "Database Queries, Schema Design, Optimization",
+                "I can write complex SQL queries, design schemas, and optimize database performance.",
+                java.util.List.of("Generate PostgreSQL query", "Optimize this SQL", "Design database schema")
         ));
 
         agents.put("project-planner", new Agent(
@@ -106,9 +118,12 @@ public class AgentRegistry {
                 0.6,
                 0.9,
                 null,
+                false,
                 true,
-                true,
-                java.util.List.of("list_documents")
+                java.util.List.of("task_planner", "timeline_generator", "risk_analysis"),
+                "Roadmaps, Milestones, Task Breakdown",
+                "I'll help you create roadmaps, milestones, and implementation plans.",
+                java.util.List.of("Plan my project", "Generate milestones", "Estimate timeline")
         ));
     }
 

@@ -56,6 +56,9 @@ class AiStreamingRagIntegrationTest {
 
     @Test
     void streamsWithRetrievedContextWithoutChangingProviderStreamingContract() {
+        com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
+        try {
         AiChatService aiChatService = new AiChatService(
                 conversationService,
                 chatMessageRepository,
@@ -85,7 +88,7 @@ class AiStreamingRagIntegrationTest {
         ChatMessageResponse assistantResponse = new ChatMessageResponse(2L, MessageRole.ASSISTANT, assistant.getContent(), assistant.getCreatedAt());
         when(conversationService.saveUserMessage(42L, "user@example.com", request)).thenReturn(user);
         when(chatMessageRepository.findByConversationId(eq(42L), any(org.springframework.data.domain.Pageable.class))).thenReturn(List.of(user));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", true, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", true, true, java.util.List.of(), null, null, java.util.List.of()));
         when(conversationMapper.toMessageResponse(user)).thenReturn(userResponse);
         when(conversationMapper.toMessageResponse(assistant)).thenReturn(assistantResponse);
         when(retrievalService.retrieve(request.getContent(), "user@example.com"))
@@ -107,6 +110,9 @@ class AiStreamingRagIntegrationTest {
         System.out.println("DEBUG STREAMING REQUEST:\n" + requestCaptor.getValue().messages().get(1).content());
         assertTrue(requestCaptor.getValue().messages().get(1).content().contains("internship.pdf"));
         assertTrue(requestCaptor.getValue().messages().get(1).content().contains("What are my internship responsibilities?"));
+        } finally {
+            com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.clearContext();
+        }
     }
 
     private ChatMessage message(Long id, MessageRole role, String content) {
@@ -121,3 +127,5 @@ class AiStreamingRagIntegrationTest {
         return message;
     }
 }
+
+

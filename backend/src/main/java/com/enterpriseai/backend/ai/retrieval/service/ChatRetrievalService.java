@@ -47,7 +47,7 @@ public class ChatRetrievalService {
         }
 
         try {
-            WorkspaceContext workspaceContext = WorkspaceContextHolder.getContext();
+            WorkspaceContext workspaceContext = WorkspaceContextHolder.getRequiredContext();
             
             log.info("ChatRetrievalService - CACHE MISS - Executing hybrid retrieval for query: '" + query + "'");
             var searchResults = retrievalPipeline.retrieveAndRank(query, workspaceContext.getWorkspaceId());

@@ -27,7 +27,7 @@ class RagPromptBuilderTest {
         AiChatRequest history = new AiChatRequest(List.of(
                 new AiMessage(AiMessageRole.USER, "What are my responsibilities?")), null, null, null);
 
-        Agent agent = new Agent("test", "test", "test", "test", "test", "test", 0.0, 0.0, "test", true, true, java.util.List.of());
+        Agent agent = new Agent("test", "test", "test", "test", "test", "test", 0.0, 0.0, "test", true, true, java.util.List.of(), null, null, java.util.List.of());
         AiChatRequest result = builder.build(agent, history, "[Document: handbook.pdf]\n\nContent:\nOwn onboarding");
 
         assertEquals(AiMessageRole.SYSTEM, result.messages().getFirst().role());
@@ -41,7 +41,8 @@ class RagPromptBuilderTest {
     void leavesPromptUnchangedWhenThereIsNoRetrievedKnowledge() {
         AiChatRequest history = new AiChatRequest(List.of(new AiMessage(AiMessageRole.USER, "Hello")), null, null, null);
 
-        Agent agent = new Agent("test", "test", "test", "test", "test", "test", null, null, null, true, true, java.util.List.of());
+        Agent agent = new Agent("test", "test", "test", "test", "test", "test", null, null, null, true, true, java.util.List.of(), null, null, java.util.List.of());
         assertEquals(history, builder.build(agent, history, ""));
     }
 }
+

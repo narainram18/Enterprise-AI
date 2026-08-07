@@ -49,7 +49,7 @@ public class WorkspaceInterceptor implements HandlerInterceptor {
         }
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        User user = userRepository.findByEmail(userDetails.getUsername()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(userDetails.getUsername()).orElse(null);
         if (user == null) {
             return true;
         }

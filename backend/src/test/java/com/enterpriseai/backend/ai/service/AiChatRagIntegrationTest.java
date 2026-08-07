@@ -73,7 +73,7 @@ class AiChatRagIntegrationTest {
         ChatMessage assistant = message(2L, MessageRole.ASSISTANT, "You own onboarding.");
         when(conversationService.saveUserMessage(42L, "user@example.com", request)).thenReturn(user);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class))).thenReturn(List.of(user));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", true, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", true, true, java.util.List.of(), null, null, java.util.List.of()));
         when(retrievalService.retrieve(request.getContent(), "user@example.com"))
                 .thenReturn(new ChatRetrievalResult(
                         "[Document: handbook.pdf]\n\nContent:\nOwn onboarding",
@@ -102,3 +102,5 @@ class AiChatRagIntegrationTest {
         return message;
     }
 }
+
+

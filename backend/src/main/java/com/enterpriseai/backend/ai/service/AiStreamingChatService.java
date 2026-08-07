@@ -99,45 +99,45 @@ public class AiStreamingChatService {
             Long conversationId,
             String currentUserEmail,
             CreateMessageRequest request) {
+        long requestReceived = System.currentTimeMillis();
 
         ChatMessage userMessage = conversationService.saveUserMessage(
                 conversationId,
                 currentUserEmail,
                 request);
+        long contextLoaded = System.currentTimeMillis();
         log.info("SSE USER message saved conversationId={} messageId={}", conversationId, userMessage.getId());
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
         
         Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
         
-        ChatRetrievalResult retrieval = agent.supportsRag() 
-                ? retrieve(request.getContent(), currentUserEmail)
-                : ChatRetrievalResult.empty(false);
-
         return startStream(
                 conversationId,
                 currentUserEmail,
-                buildRequest(agent, conversationId, retrieval),
                 userResponse,
-                retrieval);
+                () -> agent.supportsRag() ? retrieve(request.getContent(), currentUserEmail) : ChatRetrievalResult.empty(false),
+                retrieval -> buildRequest(agent, conversationId, retrieval),
+                requestReceived,
+                contextLoaded);
     }
 
     public SseEmitter regenerate(
             Long conversationId,
             Long messageId,
             String currentUserEmail) {
+        long requestReceived = System.currentTimeMillis();
         ChatMessage userMessage = conversationService.getUserMessage(conversationId, messageId, currentUserEmail);
+        long contextLoaded = System.currentTimeMillis();
         Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
         
-        ChatRetrievalResult retrieval = agent.supportsRag()
-                ? retrieve(userMessage.getContent(), currentUserEmail)
-                : ChatRetrievalResult.empty(false);
-                
         return startStream(
                 conversationId,
                 currentUserEmail,
-                buildRequest(agent, conversationId, retrieval),
                 null,
-                retrieval);
+                () -> agent.supportsRag() ? retrieve(userMessage.getContent(), currentUserEmail) : ChatRetrievalResult.empty(false),
+                retrieval -> buildRequest(agent, conversationId, retrieval),
+                requestReceived,
+                contextLoaded);
     }
 
     SseEmitter streamWithContext(
@@ -145,28 +145,33 @@ public class AiStreamingChatService {
             String currentUserEmail,
             CreateMessageRequest request,
             String retrievalContext) {
+        long requestReceived = System.currentTimeMillis();
         ChatMessage userMessage = conversationService.saveUserMessage(
                 conversationId,
                 currentUserEmail,
                 request);
+        long contextLoaded = System.currentTimeMillis();
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
         Agent agent = agentRegistry.getAgent(userMessage.getConversation().getAgentId());
         
-        ChatRetrievalResult retrieval = ChatRetrievalResult.empty(false);
         return startStream(
                 conversationId,
                 currentUserEmail,
-                aiChatService.buildContextRequest(agent, conversationId, retrievalContext),
                 userResponse,
-                retrieval);
+                () -> ChatRetrievalResult.empty(false),
+                retrieval -> aiChatService.buildContextRequest(agent, conversationId, retrievalContext),
+                requestReceived,
+                contextLoaded);
     }
 
     private SseEmitter startStream(
             Long conversationId,
             String currentUserEmail,
-            AiChatRequest aiRequest,
             ChatMessageResponse userResponse,
-            ChatRetrievalResult retrieval) {
+            java.util.function.Supplier<ChatRetrievalResult> retrievalSupplier,
+            java.util.function.Function<ChatRetrievalResult, AiChatRequest> requestBuilder,
+            long requestReceived,
+            long contextLoaded) {
 
         SseEmitter emitter = new SseEmitter(properties.streamTimeout());
         AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -178,7 +183,7 @@ public class AiStreamingChatService {
             return emitter;
         }
 
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         Map<String, String> mdcContext = MDC.getCopyOfContextMap();
 
         executor.execute(() -> {
@@ -189,6 +194,13 @@ public class AiStreamingChatService {
                 WorkspaceContextHolder.setContext(context);
             }
             try {
+                long ragStarted = System.currentTimeMillis();
+                ChatRetrievalResult retrieval = retrievalSupplier.get();
+                long ragFinished = System.currentTimeMillis();
+                
+                AiChatRequest aiRequest = requestBuilder.apply(retrieval);
+                long requestBuilt = System.currentTimeMillis();
+
                 generateAndStream(
                         conversationId,
                         currentUserEmail,
@@ -196,7 +208,12 @@ public class AiStreamingChatService {
                         emitter,
                         cancelled,
                         workerThread,
-                        retrieval);
+                        retrieval,
+                        requestReceived,
+                        contextLoaded,
+                        ragStarted,
+                        ragFinished,
+                        requestBuilt);
             } finally {
                 if (context != null) {
                     WorkspaceContextHolder.clearContext();
@@ -215,7 +232,12 @@ public class AiStreamingChatService {
             SseEmitter emitter,
             AtomicBoolean cancelled,
             AtomicReference<Thread> workerThread,
-            ChatRetrievalResult retrieval) {
+            ChatRetrievalResult retrieval,
+            long requestReceived,
+            long contextLoaded,
+            long ragStarted,
+            long ragFinished,
+            long requestBuilt) {
 
         workerThread.set(Thread.currentThread());
         log.info("SSE Ollama streaming started conversationId={} thread={}", conversationId, Thread.currentThread().getName());
@@ -229,6 +251,8 @@ public class AiStreamingChatService {
             int toolCalls = 0;
             AiChatRequest currentRequest = request;
 
+            final long[] firstTokenTime = new long[1];
+
             while (loop && toolCalls < maxToolCalls) {
                 loop = false; // By default don't loop unless a tool is called
 
@@ -237,6 +261,19 @@ public class AiStreamingChatService {
                     public void onToken(String token) {
                         if (cancelled.get()) {
                             throw new AiStreamCancelledException();
+                        }
+
+                        if (firstTokenTime[0] == 0) {
+                            firstTokenTime[0] = System.currentTimeMillis();
+                            log.info("SSE Performance metrics conversationId={} reqToContext={}ms contextToRagStart={}ms ragDuration={}ms ragToOllamaStart={}ms ollamaTimeToFirstToken={}ms totalTimeToFirstToken={}ms",
+                                    conversationId,
+                                    contextLoaded - requestReceived,
+                                    ragStarted - contextLoaded,
+                                    ragFinished - ragStarted,
+                                    requestBuilt - ragFinished,
+                                    firstTokenTime[0] - requestBuilt,
+                                    firstTokenTime[0] - requestReceived
+                            );
                         }
 
                         assistantContent.append(token);
@@ -269,7 +306,7 @@ public class AiStreamingChatService {
 
                     // Execute tool
                     com.enterpriseai.backend.ai.tool.ToolContext toolContext = new com.enterpriseai.backend.ai.tool.ToolContext(
-                            WorkspaceContextHolder.getContext().getWorkspaceId(), currentUserEmail, conversationId);
+                            WorkspaceContextHolder.getRequiredContext().getWorkspaceId(), currentUserEmail, conversationId);
                     
                     Timer.Sample toolSample = Timer.start(meterRegistry);
                     com.enterpriseai.backend.ai.tool.ToolResult result = toolExecutor.execute(

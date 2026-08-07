@@ -61,7 +61,7 @@ class DocumentIngestionPipelineIntegrationTest {
         user.setId(7L);
         user.setEmail("owner@example.com");
         user.setRole(Role.USER);
-        when(userRepository.findByEmail("owner@example.com")).thenReturn(java.util.Optional.of(user));
+        when(userRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(java.util.Optional.of(user));
 
         com.enterpriseai.backend.workspace.entity.Workspace workspace = new com.enterpriseai.backend.workspace.entity.Workspace();
         workspace.setId(7L);

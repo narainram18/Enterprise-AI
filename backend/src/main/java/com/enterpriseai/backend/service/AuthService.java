@@ -19,6 +19,7 @@ import com.enterpriseai.backend.exception.UnauthorizedException;
 import com.enterpriseai.backend.mapper.UserMapper;
 import com.enterpriseai.backend.repository.UserRepository;
 import com.enterpriseai.backend.security.JwtService;
+import com.enterpriseai.backend.workspace.service.WorkspaceService;
 
 @Service
 public class AuthService {
@@ -30,25 +31,28 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
+    private final WorkspaceService workspaceService;
 
     public AuthService(
             UserRepository repository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            WorkspaceService workspaceService) {
 
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.userMapper = userMapper;
+        this.workspaceService = workspaceService;
     }
 
     @Transactional
     public void register(RegisterRequest request) {
 
-        if (repository.existsByEmail(request.getEmail())) {
+        if (repository.existsByEmailIgnoreCase(request.getEmail())) {
             throw new DuplicateResourceException("Email already exists");
         }
 
@@ -57,12 +61,15 @@ public class AuthService {
         user.setRole(Role.USER);
 
         repository.save(user);
+        
+        workspaceService.createWorkspace(user.getName() + "'s Workspace", user.getEmail());
+        
         log.info("User registration succeeded email={}", request.getEmail());
     }
 
     public AuthResponse login(LoginRequest request) {
 
-        User user = repository.findByEmail(request.getEmail())
+        User user = repository.findByEmailIgnoreCase(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Login failed reason=unknown_user email={}", request.getEmail());
                     return new UnauthorizedException("Invalid email or password");
@@ -84,7 +91,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UserProfileResponse getCurrentUser(String email) {
 
-        User user = repository.findByEmail(email)
+        User user = repository.findByEmailIgnoreCase(email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 

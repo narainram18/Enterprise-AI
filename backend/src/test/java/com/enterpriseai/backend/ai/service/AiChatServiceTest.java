@@ -89,7 +89,7 @@ class AiChatServiceTest {
                 .thenReturn(userMessage);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(userMessage));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class)))
                 .thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
@@ -126,7 +126,7 @@ class AiChatServiceTest {
                 .thenReturn(newestUser);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(newestUser, olderAssistant));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class))).thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
                 42L,
@@ -175,7 +175,7 @@ class AiChatServiceTest {
                 .thenReturn(userMessage);
         when(chatMessageRepository.findByConversationId(eq(42L), any(Pageable.class)))
                 .thenReturn(List.of(userMessage));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class)))
                 .thenThrow(new AiGenerationException("AI provider is unavailable"));
 
@@ -213,3 +213,5 @@ class AiChatServiceTest {
                 message.getCreatedAt());
     }
 }
+
+

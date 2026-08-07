@@ -57,6 +57,14 @@ export function AgentSelector({ selectedAgentId, onSelect, disabled }: AgentSele
                     {agent.id === selectedAgentId && <Check size={14} className="agent-selector-check" />}
                   </div>
                   <div className="agent-selector-desc">{agent.description}</div>
+                  <div className="agent-selector-meta">
+                    {agent.bestFor && <div className="meta-row"><strong>Best for:</strong> {agent.bestFor}</div>}
+                    {agent.supportedTools?.length > 0 && <div className="meta-row"><strong>Tools:</strong> {agent.supportedTools.join(', ')}</div>}
+                    <div className="meta-tags">
+                      {agent.supportsRag && <span className="meta-tag"><Check size={12} /> RAG</span>}
+                      {agent.supportsStreaming && <span className="meta-tag"><Check size={12} /> Streaming</span>}
+                    </div>
+                  </div>
                 </div>
               </button>
             ))}

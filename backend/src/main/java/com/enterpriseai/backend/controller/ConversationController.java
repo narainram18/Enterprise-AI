@@ -33,7 +33,7 @@ import com.enterpriseai.backend.dto.ConversationResponse;
 import com.enterpriseai.backend.dto.ConversationSummaryResponse;
 import com.enterpriseai.backend.dto.CreateConversationRequest;
 import com.enterpriseai.backend.dto.CreateMessageRequest;
-import com.enterpriseai.backend.dto.RenameConversationRequest;
+import com.enterpriseai.backend.dto.UpdateConversationRequest;
 import com.enterpriseai.backend.service.ConversationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -102,16 +102,16 @@ public class ConversationController {
 
     @PatchMapping("/{id}")
     @Operation(
-            summary = "Rename conversation",
-            description = "Renames an owned conversation.",
+            summary = "Update conversation",
+            description = "Updates an owned conversation (title, pin, favorite, archive).",
             security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
-    public ResponseEntity<ApiResponse<ConversationSummaryResponse>> renameConversation(
+    public ResponseEntity<ApiResponse<ConversationSummaryResponse>> updateConversation(
             @PathVariable Long id,
-            @Valid @RequestBody RenameConversationRequest request,
+            @Valid @RequestBody UpdateConversationRequest request,
             @Parameter(hidden = true) Authentication authentication) {
-        ConversationSummaryResponse response = conversationService.renameConversation(id, authentication.getName(), request);
+        ConversationSummaryResponse response = conversationService.updateConversation(id, authentication.getName(), request);
         return ResponseEntity.ok(
-                new ApiResponse<>(true, "Conversation renamed successfully", response));
+                new ApiResponse<>(true, "Conversation updated successfully", response));
     }
 
     @DeleteMapping("/{id}")
@@ -139,6 +139,21 @@ public class ConversationController {
         AiChatTurnResponse response = aiChatService.chat(id, authentication.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, "Chat response generated successfully", response));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/messages/{messageId}")
+    @Operation(
+            summary = "Edit chat message",
+            description = "Edits a user message.",
+            security = @SecurityRequirement(name = OpenApiConfig.JWT_SECURITY_SCHEME))
+    public ResponseEntity<ApiResponse<ChatMessageResponse>> editMessage(
+            @PathVariable Long id,
+            @PathVariable Long messageId,
+            @Valid @RequestBody CreateMessageRequest request,
+            @Parameter(hidden = true) Authentication authentication) {
+        ChatMessageResponse response = conversationService.editMessage(id, messageId, authentication.getName(), request.getContent());
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Message updated successfully", response));
     }
 
     @PostMapping(value = "/{id}/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

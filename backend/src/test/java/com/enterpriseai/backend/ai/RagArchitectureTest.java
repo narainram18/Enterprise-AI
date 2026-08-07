@@ -64,7 +64,7 @@ public class RagArchitectureTest {
         String retrievalContext = "[Document: policy.pdf]\n\n--- Section 1 ---\nPolicy is Y.";
 
         AiChatRequest result = builder.build(
-            new Agent("test-agent", "Test", "Desc", "Icon", "Color", "You are a test agent", 0.7, 0.9, "Model", true, true, java.util.List.of()),
+            new Agent("test-agent", "Test", "Desc", "Icon", "Color", "You are a test agent", 0.7, 0.9, "Model", true, true, java.util.List.of(), null, null, java.util.List.of()),
             historyRequest, 
             retrievalContext
         );
@@ -108,3 +108,4 @@ public class RagArchitectureTest {
         assertEquals(1, bCount, "Duplicate chunks should be compressed/removed");
     }
 }
+

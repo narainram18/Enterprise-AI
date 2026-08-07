@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { X, Download, RotateCw, Trash2, Edit2, Check, AlertCircle } from 'lucide-react'
 import { documentsApi, type DocumentResponse, apiErrorMessage } from '../lib/api'
 import { Button, IconButton, LoadingState, ErrorState } from './ui/Ui'
+import { useConfirm } from '../context/ConfirmationContext'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -24,6 +25,8 @@ export function DocumentDetailsDrawer({ documentId, onClose, onUpdate, onDelete 
   const [textPreview, setTextPreview] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState('')
+  
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     loadDocument()
@@ -71,21 +74,26 @@ export function DocumentDetailsDrawer({ documentId, onClose, onUpdate, onDelete 
       onUpdate(data.data)
       setIsRenaming(false)
     } catch (e) {
-      alert(apiErrorMessage(e, 'Failed to rename'))
+      await confirm({ title: 'Error', description: apiErrorMessage(e, 'Failed to rename'), isAlert: true, variant: 'danger' })
     } finally {
       setRenameLoading(false)
     }
   }
 
   async function handleRetry() {
-    if (!confirm('Are you sure you want to retry/reindex processing?')) return
+    const isConfirmed = await confirm({
+      title: 'Retry Processing',
+      description: 'Are you sure you want to retry/reindex processing?',
+      confirmText: 'Retry'
+    })
+    if (!isConfirmed) return
     setActionLoading(true)
     try {
       const { data } = await documentsApi.retry(documentId)
       setDoc(data.data)
       onUpdate(data.data)
     } catch (e) {
-      alert(apiErrorMessage(e, 'Failed to retry'))
+      await confirm({ title: 'Error', description: apiErrorMessage(e, 'Failed to retry'), isAlert: true, variant: 'danger' })
     } finally {
       setActionLoading(false)
     }
@@ -103,7 +111,7 @@ export function DocumentDetailsDrawer({ documentId, onClose, onUpdate, onDelete 
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (e) {
-      alert(apiErrorMessage(e, 'Download failed'))
+      await confirm({ title: 'Error', description: apiErrorMessage(e, 'Download failed'), isAlert: true, variant: 'danger' })
     }
   }
 

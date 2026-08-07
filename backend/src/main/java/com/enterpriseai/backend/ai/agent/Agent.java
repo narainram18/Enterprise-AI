@@ -12,6 +12,9 @@ public record Agent(
         String model,
         boolean supportsRag,
         boolean supportsStreaming,
-        java.util.List<String> supportedTools
+        java.util.List<String> supportedTools,
+        String bestFor,
+        String welcomeMessage,
+        java.util.List<String> suggestedPrompts
 ) {
 }

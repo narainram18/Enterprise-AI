@@ -9,6 +9,7 @@ import { DocumentsPage } from './pages/DocumentsPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AdminPage } from './pages/AdminPage'
+import { CreateWorkspacePage } from './pages/CreateWorkspacePage'
 import { LoadingState } from './components/ui/Ui'
 import './App.css'
 
@@ -40,6 +41,7 @@ function App() {
         <Route path="agents/:agentId" element={<AgentWorkspacePage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="workspaces/create" element={<CreateWorkspacePage />} />
         <Route element={<AdminRoute />}><Route path="admin" element={<AdminPage />} /></Route>
       </Route>
     </Route>

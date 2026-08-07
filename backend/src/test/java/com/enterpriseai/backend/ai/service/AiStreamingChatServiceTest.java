@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +64,8 @@ class AiStreamingChatServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
         Executor directExecutor = Runnable::run;
         streamingChatService = new AiStreamingChatService(
                 conversationService,
@@ -75,6 +78,11 @@ class AiStreamingChatServiceTest {
                 agentRegistry,
                 toolExecutor,
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
+    }
+
+    @AfterEach
+    void tearDown() {
+        com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.clearContext();
     }
 
     @Test
@@ -90,7 +98,7 @@ class AiStreamingChatServiceTest {
         when(conversationService.saveUserMessage(42L, "user@example.com", request))
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L)).thenReturn(aiRequest);
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(userResponse);
         when(aiProvider.stream(eq(aiRequest), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
@@ -133,7 +141,7 @@ class AiStreamingChatServiceTest {
         when(aiChatService.buildContextRequest(42L))
                 .thenReturn(new AiChatRequest(List.of(
                         new AiMessage(AiMessageRole.USER, request.getContent())), null, null, null));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(response(userMessage));
         when(aiProvider.stream(any(AiChatRequest.class), any(AiStreamHandler.class)))
                 .thenThrow(new AiGenerationException("AI provider is unavailable"));
@@ -167,7 +175,7 @@ class AiStreamingChatServiceTest {
         when(aiChatService.buildContextRequest(42L))
                 .thenReturn(new AiChatRequest(List.of(
                         new AiMessage(AiMessageRole.USER, request.getContent())), null, null, null));
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(response(userMessage));
         when(aiProvider.stream(any(AiChatRequest.class), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
@@ -191,7 +199,7 @@ class AiStreamingChatServiceTest {
         when(conversationService.getUserMessage(42L, 7L, "user@example.com"))
                 .thenReturn(userMessage);
         when(aiChatService.buildContextRequest(42L)).thenReturn(aiRequest);
-        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of()));
+        when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(aiProvider.stream(eq(aiRequest), any(AiStreamHandler.class)))
                 .thenAnswer(invocation -> {
                     AiStreamHandler handler = invocation.getArgument(1);
@@ -241,3 +249,4 @@ class AiStreamingChatServiceTest {
                 message.getCreatedAt());
     }
 }
+

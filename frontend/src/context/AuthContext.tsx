@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authApi, tokenStore, workspacesApi, workspaceStore, type UserProfile } from '../lib/api'
+import { useNavigate } from 'react-router-dom'
 
 /** Inactivity timeout in milliseconds. Default: 30 minutes. */
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const lastThrottledRef = useRef(0)
+  const navigate = useNavigate()
 
   // ---------- logout (stable reference) ----------
   const logout = useCallback(async () => {
@@ -51,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const workspacesResponse = await workspacesApi.list()
             if (workspacesResponse.data.data.length > 0) {
               workspaceStore.set(workspacesResponse.data.data[0].id)
+            } else {
+              navigate('/app/workspaces/create', { replace: true })
             }
           } catch { /* ignore if workspaces fetch fails on bootstrap */ }
         }
@@ -117,6 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const workspacesResponse = await workspacesApi.list()
       if (workspacesResponse.data.data.length > 0) {
         workspaceStore.set(workspacesResponse.data.data[0].id)
+      } else {
+        navigate('/app/workspaces/create', { replace: true })
       }
     } catch { /* ignore if workspaces fetch fails */ }
     setUser(profile.data.data)

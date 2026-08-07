@@ -12,9 +12,9 @@ export type PageResponse<T> = { content: T[]; page: number; size: number; totalE
 export type MessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM'
 export type RetrievalCitation = { documentId: number; fileName: string; chunkIndex: number; pageNumber?: number; similarityScore: number }
 export type ChatMessageResponse = { id: number; role: MessageRole; content: string; createdAt: string; citations?: RetrievalCitation[] }
-export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string; agentId: string }
+export type ConversationSummary = { id: number; title: string; createdAt: string; updatedAt: string; agentId: string; pinned: boolean; favorite: boolean; archived: boolean }
 export type ConversationResponse = ConversationSummary & { messages: ChatMessageResponse[] }
-export type Agent = { id: string; name: string; description: string; icon: string; color: string; systemPrompt: string; supportsRag: boolean; supportsStreaming: boolean }
+export type Agent = { id: string; name: string; description: string; icon: string; color: string; systemPrompt: string; supportsRag: boolean; supportsStreaming: boolean; supportedTools: string[]; bestFor: string; welcomeMessage: string; suggestedPrompts: string[] }
 export type AiChatTurnResponse = { userMessage: ChatMessageResponse; assistantMessage: ChatMessageResponse }
 export type WorkspaceResponse = { id: number; name: string; createdAt: string; updatedAt: string }
 export type DocumentType = 'PDF' | 'DOCX' | 'TXT'
@@ -39,6 +39,32 @@ export type DocumentTextResponse = {
   originalFileName: string
   processingStatus: DocumentProcessingStatus
   text: string | null
+}
+
+export type WorkspaceStats = {
+  conversationsCount: number
+  documentsCount: number
+  agentsCount: number
+  membersCount: number
+  storageUsedBytes: number
+}
+
+export type Activity = {
+  id: string
+  type: string
+  title: string
+  description: string
+  timestamp: string
+  url: string
+}
+
+export type DashboardResponse = {
+  stats: WorkspaceStats
+  activityFeed: Activity[]
+  recentDocuments: DocumentResponse[]
+  recentConversations: ConversationSummary[]
+  recentAgents: Agent[]
+  totalChatMessages: number
 }
 
 export type StreamCallbacks = {
@@ -155,12 +181,17 @@ export const usersApi = {
   list: (params: { page?: number; size?: number; search?: string; role?: string } = {}) => api.get<ApiResponse<PageResponse<UserProfile>>>('/users', { params }),
 }
 
+export const dashboardApi = {
+  get: () => api.get<ApiResponse<DashboardResponse>>('/dashboard'),
+}
+
 export const conversationsApi = {
   list: (params: { page?: number; size?: number } = {}) => api.get<ApiResponse<PageResponse<ConversationSummary>>>('/conversations', { params }),
   get: (conversationId: number) => api.get<ApiResponse<ConversationResponse>>(`/conversations/${conversationId}`),
   create: (title?: string, agentId?: string) => api.post<ApiResponse<ConversationSummary>>('/conversations', { title, agentId }),
-  rename: (conversationId: number, title: string) => api.patch<ApiResponse<ConversationSummary>>(`/conversations/${conversationId}`, { title }),
+  update: (conversationId: number, data: { title?: string, isPinned?: boolean, isFavorite?: boolean, isArchived?: boolean }) => api.patch<ApiResponse<ConversationSummary>>(`/conversations/${conversationId}`, data),
   delete: (conversationId: number) => api.delete<ApiResponse<null>>(`/conversations/${conversationId}`),
+  editMessage: (conversationId: number, messageId: number, content: string) => api.put<ApiResponse<ChatMessageResponse>>(`/conversations/${conversationId}/messages/${messageId}`, { content }),
 }
 
 export const agentsApi = {
@@ -376,3 +407,24 @@ export function regenerateConversationMessage(
     signal,
   )
 }
+
+export interface SearchResultItem {
+  id: string
+  type: string
+  title: string
+  description: string
+  url: string
+  timestamp: string | null
+  matchReason: string
+}
+
+export interface GlobalSearchResponse {
+  query: string
+  resultsByCategory: Record<string, SearchResultItem[]>
+  totalResults: number
+}
+
+export const searchApi = {
+  global: (q: string, filter = 'All') => api.get<GlobalSearchResponse>('/search', { params: { q, filter } }),
+}
+

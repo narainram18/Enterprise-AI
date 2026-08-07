@@ -15,4 +15,13 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     Page<KnowledgeDocument> findByWorkspaceIdOrderByCreatedAtDesc(Long workspaceId, Pageable pageable);
 
     Optional<KnowledgeDocument> findByIdAndWorkspaceId(Long id, Long workspaceId);
+
+    long countByWorkspaceId(Long workspaceId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(d.fileSize), 0) FROM KnowledgeDocument d WHERE d.workspace.id = :workspaceId")
+    long sumFileSizeByWorkspaceId(@org.springframework.data.repository.query.Param("workspaceId") Long workspaceId);
+
+    Page<KnowledgeDocument> findByWorkspaceIdAndOriginalFileNameContainingIgnoreCase(Long workspaceId, String fileName, Pageable pageable);
+
+    boolean existsByWorkspaceIdAndOriginalFileName(Long workspaceId, String originalFileName);
 }

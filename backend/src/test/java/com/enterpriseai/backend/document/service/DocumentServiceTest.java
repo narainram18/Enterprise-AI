@@ -85,7 +85,7 @@ class DocumentServiceTest {
                 new com.enterpriseai.backend.workspace.context.WorkspaceContext(100L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
         
         when(workspaceRepository.getReferenceById(100L)).thenReturn(workspace);
-        when(userRepository.findByEmail("owner@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(user));
         when(documentRepository.save(any(KnowledgeDocument.class)))
                 .thenAnswer(invocation -> {
                     KnowledgeDocument document = invocation.getArgument(0);

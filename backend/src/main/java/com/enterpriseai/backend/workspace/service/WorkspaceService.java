@@ -32,13 +32,13 @@ public class WorkspaceService {
 
     @Transactional(readOnly = true)
     public List<Workspace> listWorkspaces(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return workspaceRepository.findAllByUserId(user.getId());
     }
 
     @Transactional(readOnly = true)
     public Workspace getWorkspace(Long id, String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ForbiddenException("Not a member of this workspace"));
         return member.getWorkspace();
@@ -46,7 +46,7 @@ public class WorkspaceService {
 
     @Transactional
     public Workspace createWorkspace(String name, String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         
         Workspace workspace = new Workspace();
         workspace.setName(name);
@@ -67,7 +67,7 @@ public class WorkspaceService {
 
     @Transactional
     public Workspace renameWorkspace(Long id, String newName, String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ForbiddenException("Not a member of this workspace"));
         
@@ -83,7 +83,7 @@ public class WorkspaceService {
 
     @Transactional
     public void deleteWorkspace(Long id, String email) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ForbiddenException("Not a member of this workspace"));
         

@@ -31,5 +31,8 @@ public interface ConversationMapper {
     @Mapping(target = "createdAt", source = "conversation.createdAt")
     @Mapping(target = "updatedAt", source = "conversation.updatedAt")
     @Mapping(target = "agentId", source = "conversation.agentId")
+    @Mapping(target = "pinned", source = "conversation.pinned")
+    @Mapping(target = "favorite", source = "conversation.favorite")
+    @Mapping(target = "archived", source = "conversation.archived")
     ConversationResponse toConversationResponse(Conversation conversation, List<ChatMessageResponse> messages);
 }

@@ -35,4 +35,13 @@ public class Conversation extends BaseEntity {
 
     @Column(name = "agent_id", nullable = false)
     private String agentId = "general-assistant";
+
+    @Column(name = "is_pinned", nullable = false)
+    private boolean isPinned = false;
+
+    @Column(name = "is_favorite", nullable = false)
+    private boolean isFavorite = false;
+
+    @Column(name = "is_archived", nullable = false)
+    private boolean isArchived = false;
 }

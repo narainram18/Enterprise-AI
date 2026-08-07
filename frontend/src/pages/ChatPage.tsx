@@ -1,10 +1,16 @@
 import { Children, isValidElement, useEffect, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
-import { Bot, Check, CircleStop, Copy, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Plus, RefreshCw, Save, Search, Send, Sparkles, Trash2, UserRound, X } from 'lucide-react'
+import { Bot, Check, CircleStop, Copy, Download, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Pin, Plus, RefreshCw, Save, Search, Send, Star, Trash2, UserRound, X, FileUp, Sparkles as SparklesIcon, Keyboard, MessageSquare } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useNavigate, useParams } from 'react-router-dom'
-import { conversationsApi, regenerateConversationMessage, streamConversationMessage, type ChatMessageResponse, type ConversationSummary, type StreamCallbacks } from '../lib/api'
-import { Button, EmptyState, ErrorState, IconButton, LoadingState, TextArea } from '../components/ui/Ui'
+import { agentsApi, type Agent, conversationsApi, regenerateConversationMessage, streamConversationMessage, type ChatMessageResponse, type ConversationSummary, type StreamCallbacks } from '../lib/api'
+import { Button, ErrorState, IconButton, LoadingState, TextArea } from '../components/ui/Ui'
 import { AgentSelector } from '../components/AgentSelector'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useToast } from '../context/ToastContext'
+import { useConfirm } from '../context/ConfirmationContext'
+import { eventBus } from '../lib/events'
 
 type ChatMessage = Omit<ChatMessageResponse, 'id'> & {
   id: number | string
@@ -19,6 +25,8 @@ const STREAM_ERROR_MESSAGE = 'The assistant could not finish this response.'
 export function ChatPage() {
   const { chatId } = useParams()
   const navigate = useNavigate()
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
   const routeConversationId = chatId ? Number(chatId) : null
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [activeConversation, setActiveConversation] = useState<ConversationSummary | null>(null)
@@ -33,7 +41,10 @@ export function ChatPage() {
   const [isRenaming, setIsRenaming] = useState(false)
   const [renameTitle, setRenameTitle] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [editingMessageId, setEditingMessageId] = useState<number | string | null>(null)
+  const [editingContent, setEditingContent] = useState('')
   const [copiedMessageId, setCopiedMessageId] = useState<number | string | null>(null)
+  const [agents, setAgents] = useState<Agent[]>([])
   const [selectedAgentId, setSelectedAgentId] = useState('general-assistant')
   const abortControllerRef = useRef<AbortController | null>(null)
   const copyTimeoutRef = useRef<number | null>(null)
@@ -43,6 +54,11 @@ export function ChatPage() {
   const messageListRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const shouldAutoScrollRef = useRef(true)
+  const [hoveredConvId, setHoveredConvId] = useState<number | null>(null)
+
+  useEffect(() => {
+    agentsApi.list().then(({ data }) => setAgents(data)).catch(() => setAgents([]))
+  }, [])
 
   useEffect(() => {
     void loadConversations()
@@ -97,6 +113,22 @@ export function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth', block: 'end' })
   }, [messages, isStreaming])
 
+  useEffect(() => {
+    function handleGlobalKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setMenuOpen(false)
+        setIsRenaming(false)
+        setEditingMessageId(null)
+      }
+      if (e.key === '/' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        document.querySelector<HTMLInputElement>('.history-search input')?.focus()
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
+
   async function loadConversations() {
     try {
       const { data } = await conversationsApi.list({ page: 0, size: 50 })
@@ -143,48 +175,83 @@ export function ChatPage() {
   async function saveConversationRename() {
     const title = renameTitle.trim()
     if (!title) {
-      setNotice('Conversation title cannot be empty.')
+      toast('Conversation title cannot be empty.', 'warning')
       return
     }
     if (!activeConversation) return
 
     try {
-      const { data } = await conversationsApi.rename(activeConversation.id, title)
+      const { data } = await conversationsApi.update(activeConversation.id, { title })
       setActiveConversation(data.data)
       setRenameTitle(data.data.title)
       setConversations((current) => current.map((item) => item.id === data.data.id ? data.data : item))
       setIsRenaming(false)
-      setNotice('')
+      toast('Conversation renamed', 'success')
     } catch {
-      setNotice('We couldn’t rename this conversation. Please try again.')
+      toast('We couldn’t rename this conversation. Please try again.', 'error')
     }
   }
 
-  async function deleteActiveConversation() {
-    if (!activeConversation || isDeleting) return
-    if (!window.confirm(`Delete “${activeConversation.title}”? This cannot be undone.`)) return
+  async function toggleFlag(flag: 'isPinned' | 'isFavorite' | 'isArchived', conv: ConversationSummary) {
+    const currentValue = conv[flag.replace('is', '').toLowerCase() as keyof ConversationSummary] as boolean
+    const data = { [flag]: !currentValue }
+    try {
+      const res = await conversationsApi.update(conv.id, data)
+      if (activeConversation?.id === conv.id) {
+        setActiveConversation(res.data.data)
+      }
+      setConversations((current) => current.map((item) => item.id === res.data.data.id ? res.data.data : item))
+      setMenuOpen(false)
+      toast(`Conversation ${currentValue ? 'removed from' : 'added to'} ${flag.replace('is', '').toLowerCase()}`, 'success')
+    } catch {
+      toast(`We couldn’t update the conversation. Please try again.`, 'error')
+    }
+  }
 
-    const deletedId = activeConversation.id
+  function exportConversation() {
+    if (!activeConversation || !messages.length) return
+    let md = `# ${activeConversation.title}\n\n`
+    for (const msg of messages) {
+      md += `**${msg.role === 'USER' ? 'You' : 'Enterprise AI'}**\n\n${msg.content}\n\n---\n\n`
+    }
+    const blob = new Blob([md], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activeConversation.title.replace(/\s+/g, '_')}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    setMenuOpen(false)
+  }
+
+  async function deleteConversation(conv: ConversationSummary) {
+    if (isDeleting) return
+    const isConfirmed = await confirm({
+      title: 'Delete Conversation',
+      description: `Delete “${conv.title}”? This cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+    if (!isConfirmed) return
+
     setIsDeleting(true)
     try {
-      await conversationsApi.delete(deletedId)
-      const remaining = conversations.filter((item) => item.id !== deletedId)
-      setConversations(remaining)
-      setMenuOpen(false)
-      setIsRenaming(false)
-      stopGeneration()
-
-      if (routeConversationId === deletedId) {
+      await conversationsApi.delete(conv.id)
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id))
+      eventBus.emit('CONVERSATION_DELETED')
+      toast('Conversation deleted', 'success')
+      
+      if (currentConversationRef.current === conv.id) {
+        stopGeneration()
         setActiveConversation(null)
         setMessages([])
-        if (remaining[0]) navigate(`/app/chat/${remaining[0].id}`)
-        else {
-          currentConversationRef.current = null
-          navigate('/app/chat')
-        }
+        currentConversationRef.current = null
+        navigate('/app/chat', { replace: true })
       }
     } catch {
-      setNotice('We couldn’t delete this conversation. Please try again.')
+      toast('We couldn’t delete this conversation. Please try again.', 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -216,7 +283,7 @@ export function ChatPage() {
       if (copyTimeoutRef.current !== null) window.clearTimeout(copyTimeoutRef.current)
       copyTimeoutRef.current = window.setTimeout(() => setCopiedMessageId(null), 1600)
     } catch {
-      setNotice('Couldn’t copy the assistant response.')
+      toast('Couldn’t copy the assistant response.', 'error')
     }
   }
 
@@ -303,6 +370,7 @@ export function ChatPage() {
           return [...cleaned, assistantMessage]
         })
         void loadConversations()
+        eventBus.emit('AI_RESPONDED')
       },
       onError: (error) => {
         if (requestIdRef.current !== requestId) return
@@ -335,8 +403,8 @@ export function ChatPage() {
     }
   }
 
-  async function sendMessage() {
-    const content = message.trim()
+  async function sendMessage(overrideMsg?: string) {
+    const content = (overrideMsg ?? message).trim()
     if (!content || isStreaming) return
 
     const requestId = requestIdRef.current + 1
@@ -344,7 +412,7 @@ export function ChatPage() {
     const controller = new AbortController()
     abortControllerRef.current = controller
     let conversationId = currentConversationRef.current
-    setMessage('')
+    if (!overrideMsg) setMessage('')
     setNotice('')
     setIsStreaming(true)
     shouldAutoScrollRef.current = true
@@ -368,7 +436,7 @@ export function ChatPage() {
     } catch (error) {
       if (controller.signal.aborted || requestIdRef.current !== requestId) return
       clearStreamPlaceholder()
-      setMessage(content)
+      if (!overrideMsg) setMessage(content)
       setNotice(error instanceof Error ? error.message : 'We couldn’t send your message. Please try again.')
     } finally {
       if (requestIdRef.current === requestId) {
@@ -414,6 +482,37 @@ export function ChatPage() {
     }
   }
 
+  async function saveEditedMessage(userMessage: ChatMessage) {
+    const conversationId = currentConversationRef.current
+    if (isStreaming || !conversationId || typeof userMessage.id !== 'number') return
+    const content = editingContent.trim()
+    if (!content) return
+
+    setEditingMessageId(null)
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    setNotice('')
+    setIsStreaming(true)
+    shouldAutoScrollRef.current = true
+
+    try {
+      await conversationsApi.editMessage(conversationId, userMessage.id, content)
+      setMessages((current) => current.map((item) => item.id === userMessage.id ? { ...item, content, streamError: undefined } : item))
+      await runAssistantStream(conversationId, content, requestId, controller, userMessage.id)
+    } catch {
+      if (controller.signal.aborted || requestIdRef.current !== requestId) return
+      setIsStreaming(false)
+      setNotice('Couldn’t save and resend the message.')
+    } finally {
+      if (requestIdRef.current === requestId) {
+        abortControllerRef.current = null
+        setIsStreaming(false)
+      }
+    }
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -421,20 +520,53 @@ export function ChatPage() {
     }
   }
 
+  function formatConvTime(dateString: string) {
+    const date = new Date(dateString)
+    const now = new Date()
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+    if (isToday) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
+
   const visibleConversations = conversations.filter((conversation) => conversation.title.toLowerCase().includes(search.toLowerCase()))
   const groupedConversations = groupConversationsByTime(visibleConversations)
   const title = activeConversation?.title ?? 'New conversation'
+  const selectedAgent = agents.find(a => a.id === selectedAgentId) || agents[0]
 
   return <div className="chat-page">
     <aside className="chat-history">
       <Button className="chat-new" onClick={startNewConversation}><Plus size={16} />New chat</Button>
-      <label className="history-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations" aria-label="Search conversations" /></label>
+      <label className="history-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" aria-label="Search conversations" /></label>
       <div className="conversation-list">
         {visibleConversations.length ? groupedConversations.map((group) => <div key={group.label}>
           <div className="conversation-group-label">{group.label}</div>
-          {group.conversations.map((conversation) => <button key={conversation.id} className={`conversation-list-item ${conversation.id === routeConversationId ? 'active' : ''}`} onClick={() => selectConversation(conversation.id)}>
-            <MessageIcon /><span>{conversation.title}</span>
-          </button>)}
+          {group.conversations.map((conversation) => (
+            <motion.div 
+              key={conversation.id}
+              className={`conversation-list-item ${conversation.id === routeConversationId ? 'active' : ''}`}
+              onClick={() => selectConversation(conversation.id)}
+              onMouseEnter={() => setHoveredConvId(conversation.id)}
+              onMouseLeave={() => setHoveredConvId(null)}
+            >
+              <div className="conv-item-content">
+                <span className="conv-item-title">{conversation.title}</span>
+                <span className="conv-item-time">{formatConvTime(conversation.updatedAt)}</span>
+              </div>
+              <AnimatePresence>
+                {(hoveredConvId === conversation.id || conversation.id === routeConversationId) && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 5 }} 
+                    className="conv-item-actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button onClick={() => void toggleFlag('isPinned', conversation)} aria-label="Pin" className={conversation.pinned ? 'active-flag' : ''}><Pin size={13} /></button>
+                    <button onClick={() => void deleteConversation(conversation)} aria-label="Delete" className="danger-flag"><Trash2 size={13} /></button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {conversation.pinned && hoveredConvId !== conversation.id && conversation.id !== routeConversationId && <Pin size={12} className="conversation-flag pinned" />}
+            </motion.div>
+          ))}
         </div>) : <div className="history-empty"><MessageIcon /><p>{search ? 'No matches' : 'No chat history'}</p><span>{search ? 'Try a different search.' : 'Your conversations will appear here.'}</span></div>}
       </div>
     </aside>
@@ -452,12 +584,26 @@ export function ChatPage() {
         </div>
         <div className="conversation-menu-wrap">
           <IconButton label="Conversation options" onClick={() => setMenuOpen((open) => !open)} disabled={!activeConversation || isDeleting}><MoreHorizontal size={19} /></IconButton>
-          {menuOpen && activeConversation && <div className="conversation-menu" role="menu"><button role="menuitem" onClick={() => { setRenameTitle(activeConversation.title); setIsRenaming(true); setMenuOpen(false) }}><Pencil size={14} />Rename</button><button role="menuitem" className="is-danger" onClick={() => void deleteActiveConversation()}><Trash2 size={14} />Delete</button></div>}
+          <AnimatePresence>
+            {menuOpen && activeConversation && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                className="conversation-menu" role="menu"
+              >
+                <button role="menuitem" onClick={() => { setRenameTitle(activeConversation.title); setIsRenaming(true); setMenuOpen(false) }}><Pencil size={14} />Rename</button>
+                <button role="menuitem" onClick={() => void toggleFlag('isPinned', activeConversation)}><Pin size={14} />{activeConversation.pinned ? 'Unpin' : 'Pin'}</button>
+                <button role="menuitem" onClick={() => void toggleFlag('isFavorite', activeConversation)}><Star size={14} />{activeConversation.favorite ? 'Unfavorite' : 'Favorite'}</button>
+                <button role="menuitem" onClick={exportConversation}><Download size={14} />Export (.md)</button>
+                <div className="menu-divider"></div>
+                <button role="menuitem" className="is-danger" onClick={() => void deleteConversation(activeConversation)}><Trash2 size={14} />Delete</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
       <div className="conversation-body">
         {isLoadingConversation ? <LoadingState label="Loading conversation…" /> : loadError ? <ErrorState message={loadError} onRetry={() => routeConversationId && navigate(`/app/chat/${routeConversationId}`)} /> : messages.length ? <div ref={messageListRef} className="message-list" onScroll={onMessageListScroll} aria-live="polite">{messages.map((item) => (
-          <article key={item.id} className={`chat-message chat-message-${item.role.toLowerCase()} ${item.isStreaming || item.isThinking ? 'is-streaming' : ''}`}>
+          <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={item.id} className={`chat-message chat-message-${item.role.toLowerCase()} ${item.isStreaming || item.isThinking ? 'is-streaming' : ''}`}>
             <span className="message-avatar">{item.role === 'USER' ? <UserRound size={15} /> : <Bot size={15} />}</span>
             <div className="message-content">
               <span className="message-role">{item.role === 'USER' ? 'You' : 'Enterprise AI'}</span>
@@ -485,20 +631,80 @@ export function ChatPage() {
                   )}
                   {!item.isStreaming && <button className="message-copy" onClick={() => void copyAssistantResponse(item)}>{copiedMessageId === item.id ? <Check size={13} /> : <Copy size={13} />}{copiedMessageId === item.id ? 'Copied' : 'Copy'}</button>}
                 </>
+              ) : editingMessageId === item.id ? (
+                <div className="message-edit-mode">
+                  <TextArea 
+                    value={editingContent} 
+                    onChange={(e) => setEditingContent(e.target.value)} 
+                    rows={1}
+                    className="edit-message-input"
+                  />
+                  <div className="edit-message-actions">
+                    <Button onClick={() => void saveEditedMessage(item)} disabled={!editingContent.trim() || isStreaming}>Save & Resend</Button>
+                    <button className="cancel-btn" onClick={() => setEditingMessageId(null)}>Cancel</button>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <p>{item.content}</p>
+                  <div className="message-text">
+                    <p>{item.content}</p>
+                    {!item.isStreaming && <button className="message-edit-btn" onClick={() => { setEditingMessageId(item.id); setEditingContent(item.content) }} aria-label="Edit message"><Pencil size={12} /></button>}
+                  </div>
                   {item.streamError && <div className="message-error"><span>{item.streamError}</span><button onClick={() => void retryGeneration(item)} disabled={isStreaming}><RefreshCw size={13} />Retry</button></div>}
                 </>
               )}
             </div>
-          </article>
-        ))}<div ref={messagesEndRef} /></div> : <EmptyState icon={<Sparkles size={23} />} title="How can Enterprise AI help?" description="Ask a question, analyze a document, or delegate a task." />}
+          </motion.article>
+        ))}<div ref={messagesEndRef} /></div> : (
+          <div className="chat-welcome-wrapper">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="chat-welcome-panel">
+              <div className="chat-welcome-icon"><SparklesIcon size={28} /></div>
+              <h2>{selectedAgent?.welcomeMessage || "How can Enterprise AI help?"}</h2>
+              <p>{selectedAgent?.description || "Ask a question, analyze a document, or delegate a task."}</p>
+              
+              {selectedAgent?.suggestedPrompts && selectedAgent.suggestedPrompts.length > 0 && (
+                <div className="chat-suggested-prompts">
+                  {selectedAgent.suggestedPrompts.slice(0, 4).map((prompt: string, idx: number) => (
+                    <button key={idx} className="suggested-prompt-card" onClick={() => void sendMessage(prompt)}>
+                      <MessageSquare size={16} />
+                      <span>{prompt}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              <div className="chat-welcome-actions">
+                <button onClick={() => navigate('/app/documents')}><FileUp size={16} /> Upload Document</button>
+                <button onClick={() => navigate('/app/search')}><Search size={16} /> Search Workspace</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
       <div className="composer-wrap">
         {notice && <p className="chat-error" role="alert">{notice}</p>}
-        <div className="chat-composer"><IconButton label="Attach a file" disabled><Paperclip size={19} /></IconButton><TextArea value={message} onChange={(event) => { setMessage(event.target.value); setNotice('') }} onKeyDown={onKeyDown} placeholder="Message Enterprise AI…" aria-label="Message Enterprise AI" rows={1} disabled={isStreaming} /><Button onClick={() => void sendMessage()} disabled={!message.trim() || isStreaming} aria-label="Send message"><Send size={16} /></Button></div>
-        {isStreaming ? <button className="chat-stop" onClick={stopGeneration}><CircleStop size={14} />Stop generation</button> : <p>AI responses may contain mistakes. Verify important information.</p>}
+        <div className={`chat-composer ${isStreaming ? 'disabled' : ''}`}>
+          <IconButton label="Attach a file" disabled className="composer-attach-btn"><Paperclip size={19} /></IconButton>
+          <TextArea 
+            value={message} 
+            onChange={(event) => { setMessage(event.target.value); setNotice('') }} 
+            onKeyDown={onKeyDown} 
+            placeholder="Ask anything... (Press Enter to send)" 
+            aria-label="Message Enterprise AI" 
+            rows={1} 
+            disabled={isStreaming} 
+            className="composer-textarea custom-scrollbar"
+          />
+          <div className="composer-actions">
+            {!message.trim() && <div className="composer-shortcut-hint"><Keyboard size={14} /> <span>Return to send</span></div>}
+            <Button onClick={() => void sendMessage()} disabled={!message.trim() || isStreaming} aria-label="Send message" className="composer-send-btn">
+              {isStreaming ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}
+            </Button>
+          </div>
+        </div>
+        <div className="composer-footer">
+          {isStreaming ? <button className="chat-stop" onClick={stopGeneration}><CircleStop size={14} /> Stop generation</button> : <p>AI responses may contain mistakes. Verify important information.</p>}
+        </div>
       </div>
     </section>
   </div>
@@ -552,7 +758,24 @@ function MarkdownCodeBlock({ children }: { children?: ReactNode }) {
     }
   }
 
-  return <div className="markdown-code-block"><div className="markdown-code-toolbar"><span>{language ?? 'Code'}</span><button onClick={() => void copyCode()}><Copy size={12} />{copied ? 'Copied' : 'Copy'}</button></div><pre><code className={className}>{code}</code></pre></div>
+  return (
+    <div className="markdown-code-block">
+      <div className="markdown-code-toolbar">
+        <span>{language ?? 'Code'}</span>
+        <button onClick={() => void copyCode()}>
+          <Copy size={12} />
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        language={language || 'text'}
+        style={vscDarkPlus}
+        customStyle={{ margin: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
+      >
+        {code}
+      </SyntaxHighlighter>
+    </div>
+  )
 }
 
 function groupConversationsByTime(conversations: ConversationSummary[]) {

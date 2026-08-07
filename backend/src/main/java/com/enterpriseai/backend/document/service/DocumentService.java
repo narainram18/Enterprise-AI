@@ -91,15 +91,20 @@ public class DocumentService {
         log.info("CACHE EVICT - Invalidation triggered by upload");
         DocumentType type = validate(file);
         User user = resolveUser(email);
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
+        
+        String originalFileName = originalName(file);
+        if (documentRepository.existsByWorkspaceIdAndOriginalFileName(workspace.getId(), originalFileName)) {
+            throw new IllegalArgumentException("A document with the name '" + originalFileName + "' already exists in this workspace.");
+        }
         
         String storageKey = fileStorageService.store(file);
 
         KnowledgeDocument document = new KnowledgeDocument();
         document.setCreatedBy(user);
         document.setWorkspace(workspace);
-        document.setOriginalFileName(originalName(file));
+        document.setOriginalFileName(originalFileName);
         document.setStorageKey(storageKey);
         document.setContentType(contentType(file));
         document.setFileSize(file.getSize());
@@ -159,7 +164,7 @@ public class DocumentService {
     }
 
     public Page<DocumentDetailsResponse> list(String email, Pageable pageable, String originalFileName, DocumentType documentType) {
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         Specification<KnowledgeDocument> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("workspace").get("id"), context.getWorkspaceId()));
@@ -188,6 +193,11 @@ public class DocumentService {
         if (newName == null || newName.isBlank()) {
             throw new BadRequestException("New name cannot be blank");
         }
+        
+        if (!document.getOriginalFileName().equals(newName) && documentRepository.existsByWorkspaceIdAndOriginalFileName(document.getWorkspace().getId(), newName)) {
+            throw new IllegalArgumentException("A document with the name '" + newName + "' already exists in this workspace.");
+        }
+        
         document.setOriginalFileName(newName);
         return toDetailsResponse(documentRepository.save(document));
     }
@@ -270,13 +280,13 @@ public class DocumentService {
     }
 
     private KnowledgeDocument findOwned(String email, Long id) {
-        WorkspaceContext context = WorkspaceContextHolder.getContext();
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
         return documentRepository.findByIdAndWorkspaceId(id, context.getWorkspaceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found in workspace"));
     }
 
     private User resolveUser(String email) {
-        return userRepository.findByEmail(email)
+        return userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
