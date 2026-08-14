@@ -100,7 +100,7 @@ class AiStreamingRagIntegrationTest {
             invocation.<com.enterpriseai.backend.ai.provider.AiStreamHandler>getArgument(1).onToken("grounded");
             return true;
         });
-        when(conversationService.saveAssistantMessage(42L, "user@example.com", "grounded"))
+        when(conversationService.saveAssistantMessage(eq(42L), eq("user@example.com"), eq("grounded"), any(), any()))
                 .thenReturn(assistant);
 
         service.stream(42L, "user@example.com", request);

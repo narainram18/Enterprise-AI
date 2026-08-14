@@ -30,7 +30,7 @@ public class DefaultChatContextExtension implements ChatContextExtension {
         toolPrompt.append("<invoke_tool>\n");
         toolPrompt.append("  <tool_name>tool_id_here</tool_name>\n");
         toolPrompt.append("  <parameters>\n");
-        toolPrompt.append("    <parameter_name>parameter_value</parameter_name>\n");
+        toolPrompt.append("    <your_parameter_name>parameter_value</your_parameter_name>\n");
         toolPrompt.append("  </parameters>\n");
         toolPrompt.append("</invoke_tool>\n\n");
         toolPrompt.append("Available Tools:\n");

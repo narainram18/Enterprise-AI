@@ -10,6 +10,7 @@ import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AdminPage } from './pages/AdminPage'
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage'
+import { ResearchAgentPage } from './pages/ResearchAgentPage'
 import { LoadingState } from './components/ui/Ui'
 import './App.css'
 
@@ -38,6 +39,7 @@ function App() {
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="documents/:documentId" element={<DocumentsPage />} />
         <Route path="agents" element={<AgentsPage />} />
+        <Route path="agents/research-assistant" element={<ResearchAgentPage />} />
         <Route path="agents/:agentId" element={<AgentWorkspacePage />} />
         <Route path="search" element={<SearchPage />} />
         <Route path="settings" element={<SettingsPage />} />

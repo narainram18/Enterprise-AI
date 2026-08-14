@@ -176,13 +176,15 @@ public class ConversationService {
     }
 
     @Transactional
-    public ChatMessage saveAssistantMessage(Long conversationId, String currentUserEmail, String content) {
+    public ChatMessage saveAssistantMessage(Long conversationId, String currentUserEmail, String content, java.util.List<com.enterpriseai.backend.ai.retrieval.model.RetrievalCitation> citations, com.enterpriseai.backend.ai.retrieval.model.RetrievalStatistics statistics) {
         Conversation conversation = getConversationByIdAndWorkspace(conversationId);
 
         ChatMessage message = new ChatMessage();
         message.setConversation(conversation);
         message.setRole(MessageRole.ASSISTANT);
         message.setContent(content);
+        message.setCitations(citations);
+        message.setRetrievalStatistics(statistics);
 
         message = chatMessageRepository.save(message);
 

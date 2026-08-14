@@ -42,22 +42,25 @@ public class AgentRegistry {
         agents.put("research-assistant", new Agent(
                 "research-assistant",
                 "Research Assistant",
-                "Heavily relies on retrieved documents to provide structured, cited answers.",
+                "Uses web search, browser reading, and retrieved documents to provide structured answers.",
                 "BookOpen",
                 "#8b5cf6", // violet-500
-                "You are an expert research assistant. You MUST rely heavily on the retrieved knowledge provided. "
+                "You are an expert research assistant. "
                         + "Analyze the provided documents deeply and extract facts, data points, and quotes. "
-                        + "Your answers must be highly structured, using markdown headings, bullet points, and citations. "
-                        + "If you make a claim, ensure it is backed by the retrieved context. Do NOT answer if the context is missing.",
+                        + "If the documents do not contain the answer, you MUST use `web_search`. "
+                        + "You can use `browser_tool` to open a specific URL from search results to read the full page content. "
+                        + "Limit your tool usage to a maximum of 3 `web_search` calls and 3 `browser_tool` calls per task. "
+                        + "Your answers must be highly structured, using markdown headings, bullet points, and citations (including URLs if from the web). "
+                        + "If you make a claim, ensure it is backed by the retrieved context or web search results.",
                 0.2, // lower temp for more factual answers
                 0.8,
                 null,
                 true,
                 true,
-                java.util.List.of("search_documents", "retrieve_document", "summarize_document"),
-                "Research, PDFs, Knowledge Base",
-                "Upload documents and I'll answer using citations.",
-                java.util.List.of("Summarize my uploaded documents", "Compare two documents", "Find HR policy")
+                java.util.List.of("search_documents", "retrieve_document", "summarize_document", "web_search", "browser_tool"),
+                "Research, Web Search, Browser, PDFs, Knowledge Base",
+                "Upload documents or ask me to search the web, and I'll answer using citations.",
+                java.util.List.of("Search the web for latest AI news", "Summarize my uploaded documents", "Compare two documents")
         ));
 
         agents.put("coding-assistant", new Agent(

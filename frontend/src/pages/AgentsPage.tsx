@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Bot } from 'lucide-react'
+import { ArrowLeft, Bot, CheckCircle, Loader2, XCircle } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { Button, EmptyState, TextArea } from '../components/ui/Ui'
-import { type Agent, agentsApi } from '../lib/api'
+import { type Agent, agentsApi, agentTasksApi, type AgentTaskResponse } from '../lib/api'
 import { AgentIcon } from '../components/AgentSelector'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export function AgentsPage() { 
   const [agents, setAgents] = useState<Agent[]>([])
@@ -17,7 +19,42 @@ export function AgentWorkspacePage() {
   const [agents, setAgents] = useState<Agent[]>([])
   useEffect(() => { agentsApi.list().then(({ data }) => setAgents(data)).catch(() => setAgents([])) }, [])
   const agent = useMemo(() => agents.find((item) => item.id === agentId), [agents, agentId])
+  
   const [task, setTask] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [taskId, setTaskId] = useState<number | null>(null)
+  const [taskState, setTaskState] = useState<AgentTaskResponse | null>(null)
+
+  useEffect(() => {
+    if (!taskId) return
+    let interval = setInterval(async () => {
+      try {
+        const { data: { data } } = await agentTasksApi.get(taskId)
+        setTaskState(data)
+        if (data.status === 'COMPLETED' || data.status === 'FAILED') {
+          clearInterval(interval)
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [taskId])
+
+  const handleLaunch = async () => {
+    if (!task.trim() || !agentId) return
+    setIsSubmitting(true)
+    try {
+      const { data: { data } } = await agentTasksApi.create(agentId, task)
+      setTaskId(data.id)
+      setTaskState(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   if (!agents.length) return null // loading
   if (!agent) return <div className="not-found"><EmptyState icon={<Bot size={23} />} title="Agent not found" description="Choose an available specialized agent from the workspace." action={<Link className="button button-primary" to="/app/agents">View agents</Link>} /></div>
   
@@ -78,9 +115,40 @@ export function AgentWorkspacePage() {
               <h2>What should this agent work on?</h2>
             </div>
           </div>
-          <TextArea label="Task brief" value={task} onChange={(event) => setTask(event.target.value)} placeholder="Describe the outcome, context, and any constraints…" rows={7} />
-          <Button disabled={!task.trim()} title="Agent execution requires a backend endpoint"><Bot size={16} />Launch task</Button>
-          <p className="integration-note">Agent execution is not sent because this backend does not yet expose an agent task API. Use the Chat interface to converse with this agent.</p>
+          
+          {!taskId ? (
+            <>
+              <TextArea label="Task brief" value={task} onChange={(event) => setTask(event.target.value)} placeholder="Describe the outcome, context, and any constraints…" rows={7} />
+              <Button disabled={!task.trim() || isSubmitting} onClick={handleLaunch}>
+                {isSubmitting ? <Loader2 size={16} className="spin" /> : <Bot size={16} />} 
+                Launch task
+              </Button>
+            </>
+          ) : (
+            <div className="task-status-container">
+              <div className="status-header">
+                <h3>Task Status: <span className={`status-${taskState?.status.toLowerCase()}`}>{taskState?.status}</span></h3>
+                {taskState?.status === 'RUNNING' && <Loader2 size={24} className="spin" />}
+                {taskState?.status === 'COMPLETED' && <CheckCircle size={24} color="green" />}
+                {taskState?.status === 'FAILED' && <XCircle size={24} color="red" />}
+              </div>
+              <div className="task-result">
+                <h4>Result:</h4>
+                {taskState?.status === 'FAILED' ? (
+                  <p className="error-text">{taskState?.errorMessage}</p>
+                ) : (
+                  <div className="markdown-body">
+                    {taskState?.result ? (
+                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{taskState.result}</ReactMarkdown>
+                    ) : (
+                      <p>Waiting for output...</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Button variant="secondary" onClick={() => { setTaskId(null); setTask(''); setTaskState(null); }}>Start New Task</Button>
+            </div>
+          )}
         </section>
       </div>
     </div>

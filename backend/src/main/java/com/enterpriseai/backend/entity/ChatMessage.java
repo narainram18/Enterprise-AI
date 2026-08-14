@@ -13,6 +13,11 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.util.List;
+import com.enterpriseai.backend.ai.retrieval.model.RetrievalCitation;
+import com.enterpriseai.backend.ai.retrieval.model.RetrievalStatistics;
 
 @Getter
 @Setter
@@ -34,4 +39,12 @@ public class ChatMessage extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<RetrievalCitation> citations;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private RetrievalStatistics retrievalStatistics;
 }

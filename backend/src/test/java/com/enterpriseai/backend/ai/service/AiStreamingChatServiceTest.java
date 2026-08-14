@@ -108,9 +108,11 @@ class AiStreamingChatServiceTest {
                     return true;
                 });
         when(conversationService.saveAssistantMessage(
-                42L,
-                "user@example.com",
-                "First second"))
+                eq(42L),
+                eq("user@example.com"),
+                eq("First second"),
+                any(),
+                any()))
                 .thenReturn(assistantMessage);
         when(conversationMapper.toMessageResponse(assistantMessage)).thenReturn(assistantResponse);
 
@@ -122,13 +124,17 @@ class AiStreamingChatServiceTest {
         order.verify(aiChatService).buildContextRequest(42L);
         order.verify(aiProvider).stream(eq(aiRequest), any(AiStreamHandler.class));
         order.verify(conversationService).saveAssistantMessage(
-                42L,
-                "user@example.com",
-                "First second");
+                eq(42L),
+                eq("user@example.com"),
+                eq("First second"),
+                any(),
+                any());
         verify(conversationService).saveAssistantMessage(
-                42L,
-                "user@example.com",
-                "First second");
+                eq(42L),
+                eq("user@example.com"),
+                eq("First second"),
+                any(),
+                any());
     }
 
     @Test
@@ -149,7 +155,7 @@ class AiStreamingChatServiceTest {
         streamingChatService.stream(42L, "user@example.com", request);
 
         verify(conversationService).saveUserMessage(42L, "user@example.com", request);
-        verify(conversationService, never()).saveAssistantMessage(any(), any(), any());
+        verify(conversationService, never()).saveAssistantMessage(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -186,7 +192,7 @@ class AiStreamingChatServiceTest {
 
         streamingChatService.stream(42L, "user@example.com", request);
 
-        verify(conversationService, never()).saveAssistantMessage(any(), any(), any());
+        verify(conversationService, never()).saveAssistantMessage(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -207,9 +213,11 @@ class AiStreamingChatServiceTest {
                     return true;
                 });
         when(conversationService.saveAssistantMessage(
-                42L,
-                "user@example.com",
-                "A regenerated response"))
+                eq(42L),
+                eq("user@example.com"),
+                eq("A regenerated response"),
+                any(),
+                any()))
                 .thenReturn(assistantMessage);
         when(conversationMapper.toMessageResponse(assistantMessage)).thenReturn(response(assistantMessage));
 
@@ -217,10 +225,13 @@ class AiStreamingChatServiceTest {
 
         verify(conversationService).getUserMessage(42L, 7L, "user@example.com");
         verify(conversationService, never()).saveUserMessage(any(), any(), any());
-        verify(conversationService).saveAssistantMessage(
-                42L,
-                "user@example.com",
-                "A regenerated response");
+        InOrder order = inOrder(conversationService);
+        order.verify(conversationService).saveAssistantMessage(
+                eq(42L),
+                eq("user@example.com"),
+                eq("A regenerated response"),
+                any(),
+                any());
     }
 
     private CreateMessageRequest request(String content) {

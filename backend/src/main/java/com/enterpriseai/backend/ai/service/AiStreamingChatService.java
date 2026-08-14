@@ -343,13 +343,11 @@ public class AiStreamingChatService {
             ChatMessage assistantMessage = conversationService.saveAssistantMessage(
                     conversationId,
                     currentUserEmail,
-                    assistantContent.toString());
+                    assistantContent.toString(),
+                    retrieval.statistics().retrievalAttempted() ? retrieval.citations() : null,
+                    retrieval.statistics().retrievalAttempted() ? retrieval.statistics() : null);
             log.info("SSE ASSISTANT message saved conversationId={} messageId={} length={}", conversationId, assistantMessage.getId(), assistantContent.length());
             ChatMessageResponse assistantResponse = conversationMapper.toMessageResponse(assistantMessage);
-            if (retrieval.statistics().retrievalAttempted()) {
-                assistantResponse.setCitations(retrieval.citations());
-                assistantResponse.setRetrievalStatistics(retrieval.statistics());
-            }
 
             if (sendEvent(emitter, COMPLETE_EVENT, assistantResponse, cancelled)) {
                 log.info("SSE complete event emitted conversationId={}", conversationId);

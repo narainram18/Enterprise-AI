@@ -109,7 +109,9 @@ public class AiChatService {
         ChatMessage assistantMessage = conversationService.saveAssistantMessage(
                 conversationId,
                 currentUserEmail,
-                assistantContent);
+                assistantContent,
+                retrieval.statistics().retrievalAttempted() ? retrieval.citations() : null,
+                retrieval.statistics().retrievalAttempted() ? retrieval.statistics() : null);
 
         ChatMessageResponse userResponse = conversationMapper.toMessageResponse(userMessage);
         ChatMessageResponse assistantResponse = conversationMapper.toMessageResponse(assistantMessage);

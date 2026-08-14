@@ -93,9 +93,11 @@ class AiChatServiceTest {
         when(aiProvider.generate(any(AiChatRequest.class)))
                 .thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
-                42L,
-                "user@example.com",
-                assistantMessage.getContent()))
+                eq(42L),
+                eq("user@example.com"),
+                eq(assistantMessage.getContent()),
+                any(),
+                any()))
                 .thenReturn(assistantMessage);
         when(conversationMapper.toMessageResponse(userMessage)).thenReturn(userResponse);
         when(conversationMapper.toMessageResponse(assistantMessage)).thenReturn(assistantResponse);
@@ -110,9 +112,11 @@ class AiChatServiceTest {
         order.verify(chatMessageRepository).findByConversationId(eq(42L), any(Pageable.class));
         order.verify(aiProvider).generate(any(AiChatRequest.class));
         order.verify(conversationService).saveAssistantMessage(
-                42L,
-                "user@example.com",
-                assistantMessage.getContent());
+                eq(42L),
+                eq("user@example.com"),
+                eq(assistantMessage.getContent()),
+                any(),
+                any());
     }
 
     @Test
@@ -129,9 +133,11 @@ class AiChatServiceTest {
         when(agentRegistry.getAgent("general-assistant")).thenReturn(new Agent("general-assistant", "General", "Desc", "Icon", "Color", "Prompt", 0.7, 0.9, "Model", false, true, java.util.List.of(), null, null, java.util.List.of()));
         when(aiProvider.generate(any(AiChatRequest.class))).thenReturn(assistantMessage.getContent());
         when(conversationService.saveAssistantMessage(
-                42L,
-                "user@example.com",
-                assistantMessage.getContent()))
+                eq(42L),
+                eq("user@example.com"),
+                eq(assistantMessage.getContent()),
+                any(),
+                any()))
                 .thenReturn(assistantMessage);
 
         ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
@@ -163,7 +169,7 @@ class AiChatServiceTest {
                 () -> aiChatService.chat(42L, "other@example.com", request));
 
         verifyNoInteractions(chatMessageRepository, aiProvider);
-        verify(conversationService, never()).saveAssistantMessage(any(), any(), any());
+        verify(conversationService, never()).saveAssistantMessage(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -184,7 +190,7 @@ class AiChatServiceTest {
                 () -> aiChatService.chat(42L, "user@example.com", request));
 
         verify(conversationService).saveUserMessage(42L, "user@example.com", request);
-        verify(conversationService, never()).saveAssistantMessage(any(), any(), any());
+        verify(conversationService, never()).saveAssistantMessage(any(), any(), any(), any(), any());
     }
 
     private CreateMessageRequest request(String content) {

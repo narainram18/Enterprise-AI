@@ -80,7 +80,12 @@ class AiChatRagIntegrationTest {
                         List.of(new RetrievalCitation(9L, "handbook.pdf", 2, null, 0.92)),
                         new RetrievalStatistics(1, 1, true)));
         when(aiProvider.generate(any(AiChatRequest.class))).thenReturn(assistant.getContent());
-        when(conversationService.saveAssistantMessage(42L, "user@example.com", assistant.getContent()))
+        when(conversationService.saveAssistantMessage(
+                eq(42L),
+                eq("user@example.com"),
+                eq(assistant.getContent()),
+                any(),
+                any()))
                 .thenReturn(assistant);
 
         var result = service.chat(42L, "user@example.com", request);

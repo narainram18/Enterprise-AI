@@ -20,8 +20,8 @@ public class ToolStreamInterceptor implements AiStreamHandler {
     private Map<String, Object> toolParameters = new HashMap<>();
     private String rawToolCall;
 
-    private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("<tool_name>(.*?)</tool_name>");
-    private static final Pattern PARAM_PATTERN = Pattern.compile("<([^>]+)>([^<]*)</\\1>");
+    private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("<tool_name>(.*?)</tool_name>", Pattern.DOTALL);
+    private static final Pattern PARAM_PATTERN = Pattern.compile("<([^>]+)>([^<]*)</\\1>", Pattern.DOTALL);
 
     public ToolStreamInterceptor(AiStreamHandler delegate) {
         this.delegate = delegate;

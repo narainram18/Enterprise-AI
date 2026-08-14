@@ -428,3 +428,22 @@ export const searchApi = {
   global: (q: string, filter = 'All') => api.get<GlobalSearchResponse>('/search', { params: { q, filter } }),
 }
 
+export type AgentTaskStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+export type AgentTaskResponse = {
+  id: number
+  agentId: string
+  createdBy: string
+  prompt: string
+  status: AgentTaskStatus
+  result: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const agentTasksApi = {
+  create: (agentId: string, prompt: string) => api.post<ApiResponse<AgentTaskResponse>>('/agents/tasks', { agentId, prompt }),
+  get: (taskId: number) => api.get<ApiResponse<AgentTaskResponse>>(`/agents/tasks/${taskId}`),
+  list: (params: { page?: number; size?: number } = {}) => api.get<ApiResponse<PageResponse<AgentTaskResponse>>>('/agents/tasks', { params }),
+}
