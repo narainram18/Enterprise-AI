@@ -82,7 +82,7 @@ class DocumentServiceTest {
         workspace.setId(100L);
 
         com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
-                new com.enterpriseai.backend.workspace.context.WorkspaceContext(100L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(100L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER, true));
         
         when(workspaceRepository.getReferenceById(100L)).thenReturn(workspace);
         when(userRepository.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(user));

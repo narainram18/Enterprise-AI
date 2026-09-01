@@ -6,5 +6,6 @@ public record WorkspaceResponse(
         Long id,
         String name,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        boolean onlineMode
 ) {}

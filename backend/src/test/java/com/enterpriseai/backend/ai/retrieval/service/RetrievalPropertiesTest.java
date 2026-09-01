@@ -12,7 +12,7 @@ class RetrievalPropertiesTest {
     void invalidValuesFallBackToSafeDefaults() {
         RetrievalProperties properties = new RetrievalProperties(false, 0, 2.0, 0, 0, 0, 0, false, false, "");
 
-        assertEquals(10, properties.topK());
+        assertEquals(20, properties.topK());
         assertEquals(0.5, properties.minimumSimilarityScore());
         assertEquals(5, properties.maximumRetrievedChunks());
         assertEquals(5000, properties.searchTimeout());

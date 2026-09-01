@@ -54,7 +54,7 @@ public class SemanticSearchService {
 
         log.info("SemanticSearchService: CALLED");
         Timer.Sample vectorSample = Timer.start(meterRegistry);
-        List<VectorSearchResult> results = searchVectorStore(embedding);
+        List<VectorSearchResult> results = searchVectorStore(embedding, workspaceId);
         vectorSample.stop(meterRegistry.timer("search.vector.latency"));
 
         if (results == null) {
@@ -68,25 +68,42 @@ public class SemanticSearchService {
                 .filter(result -> workspaceId.equals(longValue(result.metadata(), "workspaceId")))
                 .map(this::toRetrievedChunk)
                 .filter(java.util.Objects::nonNull)
-                .limit(properties.maximumRetrievedChunks())
                 .toList();
 
         log.info("SemanticSearchService: returned {} chunks", chunks.size());
-        if (!chunks.isEmpty()) {
-            log.info("Top similarity: {}", chunks.get(0).similarityScore());
-            for (RetrievedChunk c : chunks) {
-                log.info("Retrieved chunk ID: {}, similarity: {}", c.chunkId(), c.similarityScore());
-                log.info("Chunk:\n{}", c.chunkText());
-            }
+        
+        log.info("==================================================");
+        log.info("QUERY:");
+        log.info(query);
+        log.info("");
+        log.info("WORKSPACE:");
+        log.info(workspaceId.toString());
+        log.info("");
+        log.info("QUERY EMBEDDING DIMENSION: {}", embedding != null ? embedding.size() : "null");
+        log.info("QDRANT FILTER: workspaceId = {}", workspaceId);
+        log.info("QDRANT RESULTS COUNT: {}", chunks.size());
+        log.info("RETRIEVED CHUNKS:");
+        
+        int index = 1;
+        for (RetrievedChunk c : chunks) {
+            log.info("{}.", index++);
+            log.info("document = {}", c.documentFileName());
+            log.info("documentId = {}", c.documentId());
+            log.info("chunkId = {}", c.chunkId());
+            log.info("score = {}", c.similarityScore());
+            log.info("workspaceId = {}", c.workspaceId());
+            log.info("text = \"{}\"", c.chunkText().replace("\n", " "));
+            log.info("");
         }
+        log.info("==================================================");
         
         return chunks;
     }
 
-    private List<VectorSearchResult> searchVectorStore(List<Double> embedding) {
+    private List<VectorSearchResult> searchVectorStore(List<Double> embedding, Long workspaceId) {
         try {
             return CompletableFuture
-                    .supplyAsync(() -> vectorStore.search(embedding, properties.topK()))
+                    .supplyAsync(() -> vectorStore.search(embedding, properties.topK(), workspaceId))
                     .orTimeout(properties.searchTimeout(), TimeUnit.MILLISECONDS)
                     .join();
         } catch (CompletionException ex) {

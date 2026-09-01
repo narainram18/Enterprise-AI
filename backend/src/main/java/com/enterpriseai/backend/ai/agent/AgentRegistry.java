@@ -27,7 +27,9 @@ public class AgentRegistry {
                         + "Retrieved knowledge has higher priority than conversation history. "
                         + "If retrieved knowledge conflicts with previous assistant replies, ignore the previous assistant replies. "
                         + "Answer from retrieved knowledge whenever possible. If the answer is missing, explicitly say: \"I couldn't find this information in the uploaded documents.\" "
-                        + "Never fabricate document contents. Never mix retrieved facts with general knowledge unless explicitly asked.",
+                        + "Never fabricate document contents. Never mix retrieved facts with general knowledge unless explicitly asked. "
+                        + "You MUST NOT infer factual information (such as job roles, people, or events) from workspace metadata or tool results unless explicitly stated in the retrieved documents. "
+                        + "WARNING: Your conversation history may contain previous assumptions. DO NOT use conversation history as factual evidence.",
                 0.7,
                 0.9,
                 null,

@@ -55,7 +55,7 @@ class SemanticSearchServiceIntegrationTest {
         }
 
         @Override
-        public List<VectorSearchResult> search(List<Double> embedding, int topK) {
+        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
             return new ArrayList<>(List.of(
                     result(101L, 0.98, 7L, "first"),
                     result(102L, 0.97, 8L, "other owner"),

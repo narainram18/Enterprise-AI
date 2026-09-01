@@ -11,7 +11,7 @@ public interface VectorStore {
 
     void upsertBatch(List<Long> chunkIds, List<List<Double>> embeddings, List<Map<String, Object>> metadatas);
 
-    List<VectorSearchResult> search(List<Double> embedding, int topK);
+    List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId);
 
     void delete(Long chunkId);
 

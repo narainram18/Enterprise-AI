@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
     
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"workspace"})
     Optional<WorkspaceMember> findByWorkspaceIdAndUserId(Long workspaceId, Long userId);
 
     long countByWorkspaceId(Long workspaceId);

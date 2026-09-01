@@ -57,7 +57,7 @@ class AiStreamingRagIntegrationTest {
     @Test
     void streamsWithRetrievedContextWithoutChangingProviderStreamingContract() {
         com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
-                new com.enterpriseai.backend.workspace.context.WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(7L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER, true));
         try {
         AiChatService aiChatService = new AiChatService(
                 conversationService,

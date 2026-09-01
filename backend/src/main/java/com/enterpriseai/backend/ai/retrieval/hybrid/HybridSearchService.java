@@ -73,23 +73,37 @@ public class HybridSearchService implements RetrievalPipeline {
         List<RetrievedChunk> fusedResults = new ArrayList<>(chunkMap.values());
         fusedResults.sort(Comparator.comparing((RetrievedChunk c) -> rrfScores.get(c.chunkId())).reversed());
 
-        // Limit to top 20 before reranking
-        int limit = Math.min(20, fusedResults.size());
-        fusedResults = fusedResults.subList(0, limit);
+        // 4. Deduplicate exact matching text BEFORE applying final limits
+        // This ensures duplicate document uploads do not exhaust the final retrieved slots
+        List<RetrievedChunk> deduplicatedResults = new ArrayList<>();
+        java.util.Set<String> seenTexts = new java.util.HashSet<>();
+        for (RetrievedChunk chunk : fusedResults) {
+            String text = chunk.chunkText().trim().toLowerCase();
+            if (seenTexts.add(text)) {
+                deduplicatedResults.add(chunk);
+            }
+        }
 
-        // Update similarity score in the returned chunks to reflect RRF score
-        List<RetrievedChunk> rrfRankedChunks = fusedResults.stream().map(c -> 
-            new RetrievedChunk(
+        // Limit to top 20 before reranking (using deduplicated results)
+        int limit = Math.min(20, deduplicatedResults.size());
+        List<RetrievedChunk> topDeduplicated = deduplicatedResults.subList(0, limit);
+
+        // Update similarity score in the returned chunks to reflect normalized RRF score
+        // RRF max for a single search is ~0.016. Multiplying by 60 normalizes Rank 1 to ~0.98.
+        List<RetrievedChunk> rrfRankedChunks = topDeduplicated.stream().map(c -> {
+            double rawRrf = rrfScores.get(c.chunkId());
+            double normalizedRrf = Math.min(1.0, rawRrf * 60.0);
+            return new RetrievedChunk(
                 c.documentId(), c.chunkId(), c.chunkIndex(), c.pageNumber(),
-                rrfScores.get(c.chunkId()), // Use RRF score
+                normalizedRrf, // Use normalized RRF score
                 c.documentFileName(), c.documentType(), c.chunkText(), c.workspaceId()
-            )
-        ).toList();
+            );
+        }).toList();
 
-        // 4. Cross-Encoder Reranking
+        // 5. Cross-Encoder Reranking
         List<RetrievedChunk> finalResults = reranker.rerank(query, rrfRankedChunks);
 
-        log.info("--- HYBRID RESULTS (RRF + Reranker) ---");
+        log.info("--- HYBRID RESULTS (Normalized RRF + Reranker) ---");
         for (int i = 0; i < finalResults.size(); i++) {
             RetrievedChunk c = finalResults.get(i);
             log.info("Rank: {}, Chunk ID: {}, Final Score: {}", i + 1, c.chunkId(), c.similarityScore());

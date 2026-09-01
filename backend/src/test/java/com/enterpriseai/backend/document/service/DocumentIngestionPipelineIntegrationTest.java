@@ -66,7 +66,7 @@ class DocumentIngestionPipelineIntegrationTest {
         com.enterpriseai.backend.workspace.entity.Workspace workspace = new com.enterpriseai.backend.workspace.entity.Workspace();
         workspace.setId(7L);
         when(workspaceRepository.getReferenceById(7L)).thenReturn(workspace);
-        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER));
+        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER, true));
 
         when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> {
             KnowledgeDocument document = invocation.getArgument(0);
@@ -156,8 +156,8 @@ class DocumentIngestionPipelineIntegrationTest {
         }
 
         @Override
-        public List<VectorSearchResult> search(List<Double> embedding, int topK) {
-            return new ArrayList<>();
+        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
+            return List.of();
         }
 
         @Override

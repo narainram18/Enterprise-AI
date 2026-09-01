@@ -55,4 +55,6 @@ temp/
 # Secrets
 # =========================
 application-local.properties
-application-prod.properties
+application-prod.propertiesbackend/data/
+**/application-prod.properties
+**/application-local.properties

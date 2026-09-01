@@ -27,6 +27,14 @@ public class ToolExecutor {
             return new ToolResult(false, "Unknown tool: " + toolId);
         }
 
+        com.enterpriseai.backend.workspace.context.WorkspaceContext workspaceContext = com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.getContext();
+        boolean isOnline = workspaceContext != null && workspaceContext.isOnlineMode();
+        
+        if (tool.requiresInternet() && !isOnline) {
+            log.warn("Attempted to execute internet-dependent tool {} while workspace is offline", toolId);
+            return new ToolResult(false, "Tool execution blocked: Workspace is in Offline Mode and this tool requires internet access.");
+        }
+
         try {
             log.info("Executing tool: {} with parameters: {} and context: {}", toolId, parameters, context);
             

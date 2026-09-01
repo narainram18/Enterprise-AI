@@ -40,8 +40,8 @@ class SemanticSearchServiceTest {
     }
 
     @Test
-    void filtersByOwnerAndMinimumScoreAndAppliesMaximumResults() {
-        when(vectorStore.search(anyList(), eq(3))).thenReturn(List.of(
+    void filtersByOwnerAndMinimumScore() {
+        when(vectorStore.search(anyList(), eq(3), eq(7L))).thenReturn(List.of(
                 result(11L, 0.95, 7L, 4L, 0, "first"),
                 result(12L, 0.90, 8L, 5L, 0, "other owner"),
                 result(13L, 0.69, 7L, 4L, 1, "below threshold"),
@@ -50,15 +50,15 @@ class SemanticSearchServiceTest {
 
         List<RetrievedChunk> results = service.search("benefits", 7L);
 
-        assertEquals(2, results.size());
-        assertEquals(List.of(11L, 14L), results.stream().map(RetrievedChunk::chunkId).toList());
+        assertEquals(3, results.size());
+        assertEquals(List.of(11L, 14L, 15L), results.stream().map(RetrievedChunk::chunkId).toList());
         assertTrue(results.stream().allMatch(result -> result.workspaceId().equals(7L)));
-        verify(vectorStore).search(List.of(0.1, 0.2), 3);
+        verify(vectorStore).search(List.of(0.1, 0.2), 3, 7L);
     }
 
     @Test
     void skipsResultsWithMissingOrInvalidMetadata() {
-        when(vectorStore.search(anyList(), eq(3))).thenReturn(List.of(
+        when(vectorStore.search(anyList(), eq(3), eq(7L))).thenReturn(List.of(
                 new VectorSearchResult(20L, 0.99, Map.of("workspaceId", 7L)),
                 result(21L, 0.98, 7L, 4L, 0, "valid")));
 

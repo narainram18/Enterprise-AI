@@ -60,7 +60,6 @@ public class WorkspaceInfoTool implements Tool {
             
             StringBuilder sb = new StringBuilder();
             sb.append("Workspace Name: ").append(workspace.getName()).append("\n");
-            sb.append("Owner: ").append(workspace.getOwner().getName()).append("\n");
             sb.append("Total Documents: ").append(docs.getTotalElements()).append("\n");
             
             return new ToolResult(true, sb.toString());

@@ -3,10 +3,12 @@ import { Bell, Bot, ChevronDown, CircleHelp, FileText, Home, LogOut, Menu, Messa
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
+import { useWorkspace } from '../../context/WorkspaceContext'
 import { Brand } from '../ui/Brand'
 import { Button, IconButton } from '../ui/Ui'
+import { ModeToggle } from '../ui/ModeToggle'
 import { motion, AnimatePresence } from 'framer-motion'
-import { workspacesApi, type WorkspaceResponse, workspaceStore } from '../../lib/api'
+
 import { WorkspacesModal } from '../WorkspacesModal'
 import { eventBus } from '../../lib/events'
 
@@ -31,7 +33,7 @@ export function AppShell() {
   const [workspacesOpen, setWorkspacesOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [currentWorkspace, setCurrentWorkspace] = useState<WorkspaceResponse | null>(null)
+  const { currentWorkspace } = useWorkspace()
   const location = useLocation()
   const navigate = useNavigate()
   
@@ -47,15 +49,6 @@ export function AppShell() {
     const unsubAi = eventBus.on('AI_RESPONDED', () => handleNotify('AI finished responding'))
     
     return () => { unsubUpload(); unsubFailed(); unsubDeleted(); unsubAi(); }
-  }, [])
-
-  useEffect(() => {
-    const wsId = workspaceStore.get()
-    if (wsId) {
-      workspacesApi.get(Number(wsId))
-        .then(res => setCurrentWorkspace(res.data.data))
-        .catch(() => {})
-    }
   }, [])
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
@@ -160,6 +153,7 @@ export function AppShell() {
           </div>
         </div>
         <div className="header-actions">
+          <ModeToggle />
           <IconButton label="Search workspace" onClick={() => navigate('/app/search')}><Search size={19} /></IconButton>
           
           <div className="profile-menu-wrap">

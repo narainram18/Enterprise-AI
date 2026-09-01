@@ -16,4 +16,8 @@ public interface Tool {
     String getCategory();
 
     ToolResult execute(Map<String, Object> parameters, ToolContext context);
+
+    default boolean requiresInternet() {
+        return false;
+    }
 }

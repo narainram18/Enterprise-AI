@@ -25,6 +25,11 @@ public class WebSearchTool implements Tool {
     }
 
     @Override
+    public boolean requiresInternet() {
+        return true;
+    }
+
+    @Override
     public String getCategory() {
         return "Research";
     }

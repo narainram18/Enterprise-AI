@@ -2,6 +2,7 @@ package com.enterpriseai.backend.ai.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 @ConfigurationProperties(prefix = "ai.retrieval")
 public record RetrievalProperties(
@@ -26,18 +27,18 @@ public record RetrievalProperties(
 
     @ConstructorBinding
     public RetrievalProperties(
-            boolean enabled,
-            int topK,
-            double minimumSimilarityScore,
-            int maximumRetrievedChunks,
-            int maximumRetrievedDocuments,
-            int maximumRetrievedCharacters,
-            long searchTimeout,
-            boolean contextCompressionEnabled,
-            boolean citationsEnabled,
-            String groundingMode) {
+            @DefaultValue("true") boolean enabled,
+            @DefaultValue("20") int topK,
+            @DefaultValue("0.5") double minimumSimilarityScore,
+            @DefaultValue("5") int maximumRetrievedChunks,
+            @DefaultValue("5") int maximumRetrievedDocuments,
+            @DefaultValue("12000") int maximumRetrievedCharacters,
+            @DefaultValue("5000") long searchTimeout,
+            @DefaultValue("true") boolean contextCompressionEnabled,
+            @DefaultValue("true") boolean citationsEnabled,
+            @DefaultValue("STRICT") String groundingMode) {
         if (topK <= 0) {
-            topK = 10;
+            topK = 20;
         }
         if (!Double.isFinite(minimumSimilarityScore)
                 || minimumSimilarityScore < 0.0
@@ -68,3 +69,4 @@ public record RetrievalProperties(
         this.groundingMode = groundingMode == null || groundingMode.isBlank() ? "STRICT" : groundingMode;
     }
 }
+

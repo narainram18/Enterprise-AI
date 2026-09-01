@@ -59,6 +59,7 @@ public class RagPromptBuilder {
 
         if (!truncatedHistory.isEmpty()) {
             userPrompt.append("Conversation History\n");
+            userPrompt.append("WARNING: The following history may contain previous assumptions. DO NOT use it as factual evidence for factual queries.\n");
             for (AiMessage msg : truncatedHistory) {
                 String roleName = msg.role() == AiMessageRole.USER ? "User" : "Assistant";
                 userPrompt.append(roleName).append(": ").append(msg.content()).append("\n\n");

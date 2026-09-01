@@ -62,7 +62,7 @@ public class WorkspaceInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        WorkspaceContext context = new WorkspaceContext(workspaceId, member.getRole());
+        WorkspaceContext context = new WorkspaceContext(workspaceId, member.getRole(), member.getWorkspace().isOnlineMode());
         WorkspaceContextHolder.setContext(context);
         return true;
     }

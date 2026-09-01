@@ -42,7 +42,7 @@ class QdrantVectorStoreTest {
         when(qdrantClient.searchAsync(any(SearchPoints.class)))
                 .thenReturn(Futures.immediateFailedFuture(new RuntimeException("API error")));
 
-        assertThrows(AiVectorStoreException.class, () -> vectorStore.search(List.of(1.0, 2.0), 5));
+        assertThrows(AiVectorStoreException.class, () -> vectorStore.search(List.of(1.0, 2.0), 5, 5L));
     }
 
     @Test
@@ -64,7 +64,7 @@ class QdrantVectorStoreTest {
         // initialize collection state
         when(qdrantClient.searchAsync(any(SearchPoints.class)))
                 .thenReturn(Futures.immediateFuture(List.of()));
-        vectorStore.search(List.of(1.0), 1);
+        vectorStore.search(List.of(1.0), 1, 5L);
 
         when(qdrantClient.deleteAsync(anyString(), any(List.class)))
                 .thenReturn(Futures.immediateFailedFuture(new RuntimeException("API error")));

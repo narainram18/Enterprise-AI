@@ -23,7 +23,7 @@ public class WorkspaceController {
     }
 
     private WorkspaceResponse toResponse(Workspace workspace) {
-        return new WorkspaceResponse(workspace.getId(), workspace.getName(), workspace.getCreatedAt(), workspace.getUpdatedAt());
+        return new WorkspaceResponse(workspace.getId(), workspace.getName(), workspace.getCreatedAt(), workspace.getUpdatedAt(), workspace.isOnlineMode());
     }
 
     @GetMapping
@@ -59,6 +59,15 @@ public class WorkspaceController {
             @RequestBody WorkspaceRequest request) {
         Workspace workspace = workspaceService.renameWorkspace(id, request.name(), authentication.getName());
         return ResponseEntity.ok(new ApiResponse<>(true, "Workspace renamed successfully", toResponse(workspace)));
+    }
+
+    @PatchMapping("/{id}/mode")
+    public ResponseEntity<ApiResponse<WorkspaceResponse>> updateWorkspaceMode(
+            Authentication authentication,
+            @PathVariable Long id,
+            @RequestBody WorkspaceModeRequest request) {
+        Workspace workspace = workspaceService.updateWorkspaceMode(id, request.onlineMode(), authentication.getName());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Workspace mode updated successfully", toResponse(workspace)));
     }
 
     @DeleteMapping("/{id}")

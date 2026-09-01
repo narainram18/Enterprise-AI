@@ -1,5 +1,5 @@
 import { Children, isValidElement, useEffect, useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react'
-import { Bot, Check, CircleStop, Copy, Download, FileText, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Pin, Plus, RefreshCw, Save, Search, Send, Star, Trash2, UserRound, X, FileUp, Sparkles as SparklesIcon } from 'lucide-react'
+import { Bot, Check, CircleStop, Copy, Download, FileText, Globe, LoaderCircle, MoreHorizontal, Paperclip, Pencil, Pin, Plus, RefreshCw, Save, Search, Send, Star, Trash2, UserRound, X, FileUp, Sparkles as SparklesIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -9,6 +9,7 @@ import { Button, ErrorState, IconButton, LoadingState, TextArea } from '../compo
 import { motion, AnimatePresence } from 'framer-motion'
 import { useToast } from '../context/ToastContext'
 import { useConfirm } from '../context/ConfirmationContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { eventBus } from '../lib/events'
 
 type ChatMessage = Omit<ChatMessageResponse, 'id'> & {
@@ -31,6 +32,7 @@ export function ResearchAgentPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { currentWorkspace } = useWorkspace()
   const routeConversationId = chatId ? Number(chatId) : null
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [activeConversation, setActiveConversation] = useState<ConversationSummary | null>(null)
@@ -604,6 +606,12 @@ export function ResearchAgentPage() {
           </AnimatePresence>
         </div>
       </header>
+      {!currentWorkspace?.onlineMode && (
+        <div className="offline-warning-banner" style={{ background: 'var(--warning-bg, #fff3cd)', color: 'var(--warning-text, #856404)', padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--warning-border, #ffeeba)' }}>
+          <Globe size={14} style={{ opacity: 0.7 }} />
+          <span><strong>Offline Mode:</strong> Internet-dependent capabilities like Web Search are currently disabled.</span>
+        </div>
+      )}
       <div className="conversation-body">
         {isLoadingConversation ? <LoadingState label="Loading conversation…" /> : loadError ? <ErrorState message={loadError} onRetry={() => routeConversationId && navigate(`/app/chat/${routeConversationId}`)} /> : messages.length ? <div ref={messageListRef} className="message-list" onScroll={onMessageListScroll} aria-live="polite">{messages.map((item) => (
           <motion.article initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={item.id} className={`chat-message chat-message-${item.role.toLowerCase()} ${item.isStreaming || item.isThinking ? 'is-streaming' : ''}`}>

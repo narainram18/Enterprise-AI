@@ -16,7 +16,7 @@ export type ConversationSummary = { id: number; title: string; createdAt: string
 export type ConversationResponse = ConversationSummary & { messages: ChatMessageResponse[] }
 export type Agent = { id: string; name: string; description: string; icon: string; color: string; systemPrompt: string; supportsRag: boolean; supportsStreaming: boolean; supportedTools: string[]; bestFor: string; welcomeMessage: string; suggestedPrompts: string[] }
 export type AiChatTurnResponse = { userMessage: ChatMessageResponse; assistantMessage: ChatMessageResponse }
-export type WorkspaceResponse = { id: number; name: string; createdAt: string; updatedAt: string }
+export type WorkspaceResponse = { id: number; name: string; createdAt: string; updatedAt: string; onlineMode: boolean }
 export type DocumentType = 'PDF' | 'DOCX' | 'TXT'
 export type DocumentProcessingStatus = 'UPLOADED' | 'EXTRACTING_TEXT' | 'CHUNKING' | 'CREATING_EMBEDDINGS' | 'STORING_VECTORS' | 'READY' | 'FAILED'
 export type DocumentResponse = {
@@ -174,7 +174,8 @@ export const workspacesApi = {
   get: (id: number) => api.get<ApiResponse<WorkspaceResponse>>(`/workspaces/${id}`),
   create: (name: string) => api.post<ApiResponse<WorkspaceResponse>>('/workspaces', { name }),
   rename: (id: number, name: string) => api.put<ApiResponse<WorkspaceResponse>>(`/workspaces/${id}`, { name }),
-  delete: (id: number) => api.delete<ApiResponse<null>>(`/workspaces/${id}`)
+  delete: (id: number) => api.delete<ApiResponse<null>>(`/workspaces/${id}`),
+  updateMode: (id: number, onlineMode: boolean) => api.patch<ApiResponse<WorkspaceResponse>>(`/workspaces/${id}/mode`, { onlineMode })
 }
 
 export const usersApi = {

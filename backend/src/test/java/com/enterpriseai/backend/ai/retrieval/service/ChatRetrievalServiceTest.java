@@ -46,7 +46,7 @@ class ChatRetrievalServiceTest {
                 retrievalPipeline,
                 contextBuilder,
                 new RetrievalProperties(true, 5, 0.5, 5, 3, 1000, 1000, true, true, "STRICT"));
-        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER));
+        WorkspaceContextHolder.setContext(new WorkspaceContext(7L, WorkspaceRole.OWNER, true));
     }
 
     @Test

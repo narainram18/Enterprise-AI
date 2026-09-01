@@ -33,6 +33,9 @@ public class Workspace {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "online_mode", nullable = false)
+    private boolean onlineMode = false;
+
     public Workspace() {}
 
     public Long getId() { return id; }
@@ -49,4 +52,7 @@ public class Workspace {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public boolean isOnlineMode() { return onlineMode; }
+    public void setOnlineMode(boolean onlineMode) { this.onlineMode = onlineMode; }
 }

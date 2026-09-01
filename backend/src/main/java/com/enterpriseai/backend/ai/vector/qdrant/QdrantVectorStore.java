@@ -108,7 +108,7 @@ public class QdrantVectorStore implements VectorStore {
     }
 
     @Override
-    public List<VectorSearchResult> search(List<Double> embedding, int topK) {
+    public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
         ensureCollectionExists(embedding.size());
 
         float[] floatArray = new float[embedding.size()];
@@ -116,12 +116,20 @@ public class QdrantVectorStore implements VectorStore {
             floatArray[i] = embedding.get(i).floatValue();
         }
 
-        SearchPoints request = SearchPoints.newBuilder()
+        SearchPoints.Builder requestBuilder = SearchPoints.newBuilder()
                 .setCollectionName(properties.collection())
                 .addAllVector(java.util.stream.IntStream.range(0, floatArray.length).mapToObj(i -> floatArray[i]).toList())
                 .setLimit(topK)
-                .setWithPayload(WithPayloadSelector.newBuilder().setEnable(true).build())
-                .build();
+                .setWithPayload(WithPayloadSelector.newBuilder().setEnable(true).build());
+
+        if (workspaceId != null) {
+            Filter filter = Filter.newBuilder()
+                    .addMust(ConditionFactory.match("workspaceId", workspaceId))
+                    .build();
+            requestBuilder.setFilter(filter);
+        }
+
+        SearchPoints request = requestBuilder.build();
 
         try {
             var searchResults = qdrantClient.searchAsync(request).get();

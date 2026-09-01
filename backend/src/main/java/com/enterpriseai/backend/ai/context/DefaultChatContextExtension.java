@@ -35,9 +35,16 @@ public class DefaultChatContextExtension implements ChatContextExtension {
         toolPrompt.append("</invoke_tool>\n\n");
         toolPrompt.append("Available Tools:\n");
 
+        com.enterpriseai.backend.workspace.context.WorkspaceContext workspaceContext = com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.getContext();
+        boolean isOnline = workspaceContext != null && workspaceContext.isOnlineMode();
+
         for (String toolId : agent.supportedTools()) {
             com.enterpriseai.backend.ai.tool.Tool tool = toolRegistry.getTool(toolId);
             if (tool != null) {
+                if (tool.requiresInternet() && !isOnline) {
+                    continue;
+                }
+                
                 toolPrompt.append("- **").append(tool.getId()).append("**: ").append(tool.getDescription()).append("\n");
                 for (com.enterpriseai.backend.ai.tool.ToolParameter param : tool.getParameters()) {
                     toolPrompt.append("  - Parameter `").append(param.name()).append("` (").append(param.type()).append("): ").append(param.description());
@@ -46,6 +53,10 @@ public class DefaultChatContextExtension implements ChatContextExtension {
                 }
                 toolPrompt.append("\n");
             }
+        }
+        
+        if (!isOnline) {
+            toolPrompt.append("IMPORTANT RULE: You are currently in OFFLINE MODE. Web Search and Browser tools have been disabled for security and privacy. If the user asks you to search the web, browse a webpage, or perform internet research, you MUST reply with exactly this message (or similar): 'Web research is disabled because this workspace is in Offline Mode. Switch to Online Mode to enable web research.' Do NOT attempt to silently answer using outdated knowledge.\n\n");
         }
         
         toolPrompt.append("If you output a <invoke_tool>, STOP generation immediately. I will reply with the tool result.\n");

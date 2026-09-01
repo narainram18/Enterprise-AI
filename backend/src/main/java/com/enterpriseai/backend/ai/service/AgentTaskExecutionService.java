@@ -47,16 +47,20 @@ public class AgentTaskExecutionService {
     }
 
     @Async("aiStreamingExecutor")
-    public void executeTask(Long taskId, WorkspaceContext context) {
-        // Set the context for this background thread
-        WorkspaceContextHolder.setContext(context);
-        
+    public void executeTask(Long taskId, WorkspaceContext originalContext) {
         AgentTask task = taskRepository.findById(taskId).orElse(null);
         if (task == null) {
             log.error("Task {} not found", taskId);
-            WorkspaceContextHolder.clearContext();
             return;
         }
+
+        // Explicitly obtain fresh workspace context inside the async thread
+        WorkspaceContext freshContext = new WorkspaceContext(
+                task.getWorkspace().getId(),
+                originalContext.getRole(),
+                task.getWorkspace().isOnlineMode()
+        );
+        WorkspaceContextHolder.setContext(freshContext);
 
         try {
             task.setStatus(AgentTaskStatus.RUNNING);

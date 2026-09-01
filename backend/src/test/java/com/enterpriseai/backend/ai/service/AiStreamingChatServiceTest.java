@@ -65,7 +65,7 @@ class AiStreamingChatServiceTest {
     @BeforeEach
     void setUp() {
         com.enterpriseai.backend.workspace.context.WorkspaceContextHolder.setContext(
-                new com.enterpriseai.backend.workspace.context.WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER));
+                new com.enterpriseai.backend.workspace.context.WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER, true));
         Executor directExecutor = Runnable::run;
         streamingChatService = new AiStreamingChatService(
                 conversationService,

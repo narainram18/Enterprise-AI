@@ -82,6 +82,22 @@ public class WorkspaceService {
     }
 
     @Transactional
+    public Workspace updateWorkspaceMode(Long id, boolean onlineMode, String email) {
+        User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new ForbiddenException("Not a member of this workspace"));
+        
+        if (member.getRole() != WorkspaceRole.OWNER && member.getRole() != WorkspaceRole.ADMIN) {
+            throw new ForbiddenException("Only OWNER or ADMIN can change workspace mode");
+        }
+
+        Workspace workspace = member.getWorkspace();
+        workspace.setOnlineMode(onlineMode);
+        workspace.setUpdatedAt(LocalDateTime.now());
+        return workspaceRepository.save(workspace);
+    }
+
+    @Transactional
     public void deleteWorkspace(Long id, String email) {
         User user = userRepository.findByEmailIgnoreCase(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(id, user.getId())
