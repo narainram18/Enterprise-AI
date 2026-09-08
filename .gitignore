@@ -58,3 +58,18 @@ application-local.properties
 application-prod.propertiesbackend/data/
 **/application-prod.properties
 **/application-local.properties
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+
+# =========================
+# Test Reports & Data
+# =========================
+qa_report.md
+*_report.md
+handbook*.txt
+test_policy*.txt
+*.pdf
