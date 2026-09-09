@@ -85,7 +85,7 @@ public class WebSearchTool implements Tool {
                     .get();
 
             Elements results = doc.select(".result");
-            
+
             if (results.isEmpty()) {
                 return new ToolResult(true, "No results found for query: " + query);
             }
@@ -96,16 +96,16 @@ public class WebSearchTool implements Tool {
             int count = 0;
             for (Element result : results) {
                 if (count >= maxResults) break;
-                
+
                 Element titleEl = result.selectFirst(".result__title > a");
                 Element snippetEl = result.selectFirst(".result__snippet");
                 Element urlEl = result.selectFirst(".result__url");
-                
+
                 if (titleEl != null && snippetEl != null) {
                     String title = titleEl.text();
                     String link = titleEl.attr("href");
                     String snippet = snippetEl.text();
-                    
+
                     if (link.startsWith("//duckduckgo.com/l/?uddg=")) {
                         // Extract real URL if wrapped by DuckDuckGo redirect
                         try {
@@ -124,18 +124,64 @@ public class WebSearchTool implements Tool {
                     count++;
                 }
             }
-            
+
             if (count == 0) {
                 return new ToolResult(true, "No valid results could be extracted.");
             }
 
             return new ToolResult(true, sb.toString());
-        } catch (java.net.SocketTimeoutException e) {
-            return new ToolResult(false, "Search timed out after 5 seconds. Please try again with a different query.");
-        } catch (java.io.IOException e) {
-            return new ToolResult(false, "Network error occurred while searching: " + e.getMessage());
         } catch (Exception e) {
-            return new ToolResult(false, "Unexpected error occurred during web search: " + e.getMessage());
+            // DuckDuckGo failed, fallback to Wikipedia OpenSearch API
+            try {
+                String wikiUrl = "https://en.wikipedia.org/w/api.php?action=opensearch&search="
+                        + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&limit=" + maxResults + "&format=json";
+
+                Document wikiDoc = Jsoup.connect(wikiUrl)
+                        .userAgent("EnterpriseAI/1.0 (test@enterpriseai.com)")
+                        .ignoreContentType(true)
+                        .timeout(5000)
+                        .get();
+
+                String json = wikiDoc.body().text();
+                // Basic JSON array parsing since we don't have Jackson here directly
+                // Format: ["query", ["title1", "title2"], ["snippet1", ""], ["url1", "url2"]]
+
+                // For simplicity, we just use string manipulation or a simple regex since Jackson is not injected
+                if (json.contains("[") && json.length() > 20) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Web Search Results (Wikipedia Fallback) for \"").append(query).append("\":\n\n");
+
+                    // A simple and robust way to parse this without a library is to just use standard java classes,
+                    // but since Jackson is available in the classpath, let's just use it!
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    java.util.List<?> list = mapper.readValue(json, java.util.List.class);
+
+                    if (list.size() >= 4) {
+                        java.util.List<String> titles = (java.util.List<String>) list.get(1);
+                        java.util.List<String> snippets = (java.util.List<String>) list.get(2);
+                        java.util.List<String> urls = (java.util.List<String>) list.get(3);
+
+                        for (int i = 0; i < titles.size(); i++) {
+                            sb.append("### ").append(titles.get(i)).append("\n");
+                            sb.append("**URL**: ").append(urls.get(i)).append("\n");
+                            if (i < snippets.size() && !snippets.get(i).isEmpty()) {
+                                sb.append("**Snippet**: ").append(snippets.get(i)).append("\n\n");
+                            } else {
+                                sb.append("**Snippet**: ").append(titles.get(i)).append(" article.\n\n");
+                            }
+                        }
+
+                        if (titles.isEmpty()) {
+                            return new ToolResult(true, "No results found on Wikipedia for query: " + query);
+                        }
+                        return new ToolResult(true, sb.toString());
+                    }
+                }
+                return new ToolResult(false, "Search failed and fallback returned invalid data.");
+
+            } catch (Exception ex) {
+                return new ToolResult(false, "Web search failed. DuckDuckGo error: " + e.getMessage() + ". Wikipedia fallback error: " + ex.getMessage());
+            }
         }
     }
 }

@@ -37,26 +37,24 @@ public class ToolStreamInterceptor implements AiStreamHandler {
         }
 
         if (inToolCall) {
+            // Keep connection alive while buffering tool invocation
+            delegate.onToken("");
             if (currentStr.contains("</invoke_tool>")) {
                 toolCallComplete = true;
                 rawToolCall = currentStr.substring(currentStr.indexOf("<invoke_tool>"), currentStr.indexOf("</invoke_tool>") + 14);
                 parseToolCall(rawToolCall);
             }
         } else {
-            // Not in a tool call, we can safely pass the token if we know it's not the start of one
-            // Simple buffering strategy: if the buffer ends with part of "<invoke_tool>", wait.
-            // For simplicity in this implementation, we just pass tokens if they don't contain '<' 
-            // and we flush when it's clear it's not a tool call.
-            
-            // To be perfectly accurate without delaying tokens, it's tricky.
-            // Let's do a simple approach: if buffer has no '<', flush immediately.
             if (!currentStr.contains("<")) {
                 delegate.onToken(currentStr);
                 buffer.setLength(0);
-            } else if (currentStr.contains("<") && !currentStr.contains("<invoke_tool>") && currentStr.length() > 20) {
+            } else if (currentStr.length() > 15 && !currentStr.contains("<invoke_tool>")) {
                 // Not a tool call, just some other xml or long string
                 delegate.onToken(currentStr);
                 buffer.setLength(0);
+            } else {
+                // Still buffering potentially a <invoke_tool> tag
+                delegate.onToken("");
             }
         }
     }

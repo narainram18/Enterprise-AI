@@ -263,7 +263,7 @@ public class AiStreamingChatService {
                             throw new AiStreamCancelledException();
                         }
 
-                        if (firstTokenTime[0] == 0) {
+                        if (firstTokenTime[0] == 0 && token != null && !token.isEmpty()) {
                             firstTokenTime[0] = System.currentTimeMillis();
                             log.info("SSE Performance metrics conversationId={} reqToContext={}ms contextToRagStart={}ms ragDuration={}ms ragToOllamaStart={}ms ollamaTimeToFirstToken={}ms totalTimeToFirstToken={}ms",
                                     conversationId,
@@ -276,9 +276,16 @@ public class AiStreamingChatService {
                             );
                         }
 
-                        assistantContent.append(token);
-                        if (!sendEvent(emitter, TOKEN_EVENT, token, cancelled)) {
-                            throw new AiStreamCancelledException();
+                        if (token != null && !token.isEmpty()) {
+                            assistantContent.append(token);
+                            if (!sendEvent(emitter, TOKEN_EVENT, token, cancelled)) {
+                                throw new AiStreamCancelledException();
+                            }
+                        } else {
+                            // Send empty token as keep-alive ping
+                            if (!sendEvent(emitter, TOKEN_EVENT, "", cancelled)) {
+                                throw new AiStreamCancelledException();
+                            }
                         }
                     }
 

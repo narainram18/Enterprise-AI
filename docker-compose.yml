@@ -111,6 +111,5 @@ services:
 volumes:
   postgres_data:
   qdrant_data:
-  ollama_data:
   backend_data:
   backend_logs:
