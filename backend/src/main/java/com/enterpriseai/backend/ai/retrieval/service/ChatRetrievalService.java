@@ -49,8 +49,13 @@ public class ChatRetrievalService {
         try {
             WorkspaceContext workspaceContext = WorkspaceContextHolder.getRequiredContext();
             
+            User user = userRepository.findByEmailIgnoreCase(currentUserEmail)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            
             log.info("ChatRetrievalService - CACHE MISS - Executing hybrid retrieval for query: '" + query + "'");
-            var searchResults = retrievalPipeline.retrieveAndRank(query, workspaceContext.getWorkspaceId());
+            long startTime = System.currentTimeMillis();
+            var searchResults = retrievalPipeline.retrieveAndRank(query, workspaceContext.getWorkspaceId(), user.getId());
+            long latencyMs = System.currentTimeMillis() - startTime;
             
             List<RetrievedChunk> chunks = contextBuilder.select(searchResults);
             log.info("Number of retrieved chunks after selection: " + chunks.size());
@@ -76,7 +81,7 @@ public class ChatRetrievalService {
             return new ChatRetrievalResult(
                     context,
                     citations,
-                    new RetrievalStatistics(chunks.size(), documents, true));
+                    new RetrievalStatistics(chunks.size(), documents, true, query, "Hybrid", latencyMs, 0, searchResults.size(), searchResults.size()));
         } catch (RuntimeException ex) {
             log.warning(() -> "Semantic retrieval skipped: " + ex.getMessage());
             return ChatRetrievalResult.empty(true);

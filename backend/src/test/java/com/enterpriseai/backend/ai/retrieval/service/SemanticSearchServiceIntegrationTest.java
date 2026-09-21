@@ -38,7 +38,7 @@ class SemanticSearchServiceIntegrationTest {
                 new RetrievalProperties(true, 3, 0.75, 2, 2, 1000, 1000, true, true, "STRICT"),
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry());
 
-        List<RetrievedChunk> results = service.search("benefits", 7L);
+        List<RetrievedChunk> results = service.search("benefits", 7L, 1L);
 
         assertEquals(List.of(101L, 103L), results.stream().map(RetrievedChunk::chunkId).toList());
         assertEquals(List.of(0.98, 0.90), results.stream().map(RetrievedChunk::similarityScore).toList());
@@ -55,7 +55,7 @@ class SemanticSearchServiceIntegrationTest {
         }
 
         @Override
-        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
+        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId, Long userId) {
             return new ArrayList<>(List.of(
                     result(101L, 0.98, 7L, "first"),
                     result(102L, 0.97, 8L, "other owner"),

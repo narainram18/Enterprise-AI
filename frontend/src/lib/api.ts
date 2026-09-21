@@ -24,6 +24,7 @@ export type DocumentResponse = {
   originalFileName: string
   contentType: string
   fileSize: number
+  version: number
   documentType: DocumentType
   processingStatus: DocumentProcessingStatus
   extractionError: string | null

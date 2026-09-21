@@ -68,7 +68,7 @@ public class DashboardController {
         
         List<DocumentResponse> docResponses = recentDocs.stream()
                 .map(d -> new DocumentResponse(
-                        d.getId(), d.getOriginalFileName(), d.getContentType(), d.getFileSize(),
+                        d.getId(), d.getOriginalFileName(), d.getContentType(), d.getFileSize(), d.getVersion(),
                         d.getDocumentType(), d.getProcessingStatus(), d.getExtractionError(),
                         d.getCreatedAt(), d.getUpdatedAt()
                 )).toList();

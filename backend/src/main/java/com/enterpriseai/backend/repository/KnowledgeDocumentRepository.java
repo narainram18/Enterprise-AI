@@ -24,4 +24,6 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     Page<KnowledgeDocument> findByWorkspaceIdAndOriginalFileNameContainingIgnoreCase(Long workspaceId, String fileName, Pageable pageable);
 
     boolean existsByWorkspaceIdAndOriginalFileName(Long workspaceId, String originalFileName);
+
+    Optional<KnowledgeDocument> findFirstByWorkspaceIdAndOriginalFileNameOrderByVersionDesc(Long workspaceId, String originalFileName);
 }

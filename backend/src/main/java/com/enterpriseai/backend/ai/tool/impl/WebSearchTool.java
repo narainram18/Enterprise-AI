@@ -82,6 +82,7 @@ public class WebSearchTool implements Tool {
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                     .header("Accept-Language", "en-US,en;q=0.9")
                     .timeout(5000)
+                    .followRedirects(false)
                     .get();
 
             Elements results = doc.select(".result");
@@ -118,7 +119,7 @@ public class WebSearchTool implements Tool {
                         link = "https://" + urlEl.text().trim();
                     }
 
-                    sb.append("### ").append(title).append("\n");
+                    sb.append("### [Web Source: ").append(title).append("]\n");
                     sb.append("**URL**: ").append(link).append("\n");
                     sb.append("**Snippet**: ").append(snippet).append("\n\n");
                     count++;
@@ -140,6 +141,7 @@ public class WebSearchTool implements Tool {
                         .userAgent("EnterpriseAI/1.0 (test@enterpriseai.com)")
                         .ignoreContentType(true)
                         .timeout(5000)
+                        .followRedirects(false)
                         .get();
 
                 String json = wikiDoc.body().text();
@@ -162,7 +164,7 @@ public class WebSearchTool implements Tool {
                         java.util.List<String> urls = (java.util.List<String>) list.get(3);
 
                         for (int i = 0; i < titles.size(); i++) {
-                            sb.append("### ").append(titles.get(i)).append("\n");
+                            sb.append("### [Web Source: ").append(titles.get(i)).append("]\n");
                             sb.append("**URL**: ").append(urls.get(i)).append("\n");
                             if (i < snippets.size() && !snippets.get(i).isEmpty()) {
                                 sb.append("**Snippet**: ").append(snippets.get(i)).append("\n\n");

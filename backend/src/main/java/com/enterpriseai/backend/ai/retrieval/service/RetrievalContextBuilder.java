@@ -48,7 +48,7 @@ public class RetrievalContextBuilder {
             // Sort by chunk index to merge contiguous chunks
             docChunks.sort(Comparator.comparingInt(RetrievedChunk::chunkIndex));
             
-            context.append("[Document: ").append(fileName).append("]\n\n");
+            context.append("[Workspace Source: ").append(fileName).append("]\n\n");
             
             for (RetrievedChunk chunk : docChunks) {
                 String formatted = format(chunk, properties.citationsEnabled());

@@ -108,7 +108,7 @@ public class QdrantVectorStore implements VectorStore {
     }
 
     @Override
-    public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
+    public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId, Long userId) {
         ensureCollectionExists(embedding.size());
 
         float[] floatArray = new float[embedding.size()];
@@ -123,10 +123,22 @@ public class QdrantVectorStore implements VectorStore {
                 .setWithPayload(WithPayloadSelector.newBuilder().setEnable(true).build());
 
         if (workspaceId != null) {
-            Filter filter = Filter.newBuilder()
-                    .addMust(ConditionFactory.match("workspaceId", workspaceId))
-                    .build();
-            requestBuilder.setFilter(filter);
+            Filter.Builder filterBuilder = Filter.newBuilder()
+                    .addMust(ConditionFactory.match("workspaceId", workspaceId));
+            
+            if (userId != null) {
+                io.qdrant.client.grpc.Points.Condition publicCondition = ConditionFactory.matchKeyword("accessLevel", "PUBLIC");
+                io.qdrant.client.grpc.Points.Condition ownerCondition = ConditionFactory.match("createdById", userId);
+                
+                Filter accessFilter = Filter.newBuilder()
+                        .addShould(publicCondition)
+                        .addShould(ownerCondition)
+                        .build();
+                        
+                filterBuilder.addMust(io.qdrant.client.grpc.Points.Condition.newBuilder().setFilter(accessFilter).build());
+            }
+            
+            requestBuilder.setFilter(filterBuilder.build());
         }
 
         SearchPoints request = requestBuilder.build();

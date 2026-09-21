@@ -73,14 +73,14 @@ class DocumentEmbeddingServiceTest {
                 List.of(List.of(1.0, 2.0), List.of(3.0, 4.0)),
                 List.of(
                         Map.of("documentId", 4L, "chunkId", 11L, "workspaceId", 7L, "createdById", 7L,
-                                "chunkIndex", 0, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "first"),
+                                "chunkIndex", 0, "originalFileName", "policy.txt", "documentType", "TXT", "accessLevel", "PUBLIC", "chunkText", "first"),
                         Map.of("documentId", 4L, "chunkId", 12L, "workspaceId", 7L, "createdById", 7L,
-                                "chunkIndex", 1, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "second")));
+                                "chunkIndex", 1, "originalFileName", "policy.txt", "documentType", "TXT", "accessLevel", "PUBLIC", "chunkText", "second")));
         verify(vectorStore).upsertBatch(
                 List.of(13L),
                 List.of(List.of(5.0, 6.0)),
                 List.of(Map.of("documentId", 4L, "chunkId", 13L, "workspaceId", 7L, "createdById", 7L,
-                        "chunkIndex", 2, "originalFileName", "policy.txt", "documentType", "TXT", "chunkText", "third")));
+                        "chunkIndex", 2, "originalFileName", "policy.txt", "documentType", "TXT", "accessLevel", "PUBLIC", "chunkText", "third")));
     }
 
     @Test

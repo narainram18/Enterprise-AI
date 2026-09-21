@@ -17,6 +17,6 @@ public record ChatRetrievalResult(
         return new ChatRetrievalResult(
                 "",
                 List.of(),
-                new RetrievalStatistics(0, 0, attempted));
+                new RetrievalStatistics(0, 0, attempted, null, null, 0, 0, 0, 0));
     }
 }

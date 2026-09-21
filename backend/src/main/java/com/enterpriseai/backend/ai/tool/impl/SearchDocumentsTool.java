@@ -16,9 +16,11 @@ import com.enterpriseai.backend.ai.tool.ToolResult;
 public class SearchDocumentsTool implements Tool {
 
     private final SemanticSearchService semanticSearchService;
+    private final com.enterpriseai.backend.repository.UserRepository userRepository;
 
-    public SearchDocumentsTool(SemanticSearchService semanticSearchService) {
+    public SearchDocumentsTool(SemanticSearchService semanticSearchService, com.enterpriseai.backend.repository.UserRepository userRepository) {
         this.semanticSearchService = semanticSearchService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -56,7 +58,9 @@ public class SearchDocumentsTool implements Tool {
         }
 
         try {
-            List<RetrievedChunk> chunks = semanticSearchService.search(query, context.workspaceId());
+            com.enterpriseai.backend.entity.User user = userRepository.findByEmailIgnoreCase(context.email())
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+            List<RetrievedChunk> chunks = semanticSearchService.search(query, context.workspaceId(), user.getId());
             if (chunks.isEmpty()) {
                 return new ToolResult(true, "No matching documents found for query: " + query);
             }

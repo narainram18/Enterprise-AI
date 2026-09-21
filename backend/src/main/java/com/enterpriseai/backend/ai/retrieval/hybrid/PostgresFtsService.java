@@ -19,7 +19,7 @@ public class PostgresFtsService implements KeywordSearchService {
     }
 
     @Override
-    public List<RetrievedChunk> search(String query, Long workspaceId) {
+    public List<RetrievedChunk> search(String query, Long workspaceId, Long userId) {
         if (query == null || query.isBlank()) {
             return List.of();
         }
@@ -40,6 +40,8 @@ public class PostgresFtsService implements KeywordSearchService {
             FROM document_chunks dc
             JOIN knowledge_documents kd ON dc.document_id = kd.id
             WHERE kd.workspace_id = ? 
+              AND kd.is_latest_version = true
+              AND (kd.access_level = 'PUBLIC' OR kd.created_by_id = ?)
               AND dc.search_vector @@ to_tsquery('english', ?)
             ORDER BY score DESC
             LIMIT 50
@@ -64,6 +66,6 @@ public class PostgresFtsService implements KeywordSearchService {
                 log.warn("Failed to map chunk from FTS", e);
                 return null;
             }
-        }, tsQuery, workspaceId, tsQuery);
+        }, tsQuery, workspaceId, userId, tsQuery);
     }
 }

@@ -95,7 +95,7 @@ class AiStreamingRagIntegrationTest {
                 .thenReturn(new ChatRetrievalResult(
                         "[Document: internship.pdf]\n\nContent:\nOwn onboarding",
                         List.of(new RetrievalCitation(9L, "internship.pdf", 0, null, 0.9)),
-                        new RetrievalStatistics(1, 1, true)));
+                        new RetrievalStatistics(1, 1, true, null, null, 0, 0, 0, 0)));
         when(aiProvider.stream(any(AiChatRequest.class), any())).thenAnswer(invocation -> {
             invocation.<com.enterpriseai.backend.ai.provider.AiStreamHandler>getArgument(1).onToken("grounded");
             return true;

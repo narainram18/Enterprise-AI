@@ -103,6 +103,7 @@ public class DocumentEmbeddingService {
                 "chunkIndex", chunk.getChunkIndex(),
                 "originalFileName", document.getOriginalFileName(),
                 "documentType", document.getDocumentType().name(),
+                "accessLevel", document.getAccessLevel().name(),
                 "chunkText", chunk.getContent());
     }
 

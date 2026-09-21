@@ -41,7 +41,7 @@ public class SemanticSearchService {
         this.meterRegistry = meterRegistry;
     }
 
-    public List<RetrievedChunk> search(String query, Long workspaceId) {
+    public List<RetrievedChunk> search(String query, Long workspaceId, Long userId) {
         if (workspaceId == null) {
             throw new IllegalArgumentException("Workspace ID must not be null");
         }
@@ -54,7 +54,7 @@ public class SemanticSearchService {
 
         log.info("SemanticSearchService: CALLED");
         Timer.Sample vectorSample = Timer.start(meterRegistry);
-        List<VectorSearchResult> results = searchVectorStore(embedding, workspaceId);
+        List<VectorSearchResult> results = searchVectorStore(embedding, workspaceId, userId);
         vectorSample.stop(meterRegistry.timer("search.vector.latency"));
 
         if (results == null) {
@@ -100,10 +100,10 @@ public class SemanticSearchService {
         return chunks;
     }
 
-    private List<VectorSearchResult> searchVectorStore(List<Double> embedding, Long workspaceId) {
+    private List<VectorSearchResult> searchVectorStore(List<Double> embedding, Long workspaceId, Long userId) {
         try {
             return CompletableFuture
-                    .supplyAsync(() -> vectorStore.search(embedding, properties.topK(), workspaceId))
+                    .supplyAsync(() -> vectorStore.search(embedding, properties.topK(), workspaceId, userId))
                     .orTimeout(properties.searchTimeout(), TimeUnit.MILLISECONDS)
                     .join();
         } catch (CompletionException ex) {

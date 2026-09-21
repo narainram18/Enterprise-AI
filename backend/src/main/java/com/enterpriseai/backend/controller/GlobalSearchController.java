@@ -26,21 +26,27 @@ public class GlobalSearchController {
     private final KnowledgeDocumentRepository documentRepository;
     private final AgentRegistry agentRegistry;
     private final RetrievalPipeline retrievalPipeline;
+    private final com.enterpriseai.backend.repository.UserRepository userRepository;
 
     public GlobalSearchController(ConversationRepository conversationRepository,
                                   KnowledgeDocumentRepository documentRepository,
                                   AgentRegistry agentRegistry,
-                                  RetrievalPipeline retrievalPipeline) {
+                                  RetrievalPipeline retrievalPipeline,
+                                  com.enterpriseai.backend.repository.UserRepository userRepository) {
         this.conversationRepository = conversationRepository;
         this.documentRepository = documentRepository;
         this.agentRegistry = agentRegistry;
         this.retrievalPipeline = retrievalPipeline;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
     public ResponseEntity<GlobalSearchResponse> search(@RequestParam("q") String query,
-                                                     @RequestParam(value = "filter", defaultValue = "All") String filter) {
+                                                     @RequestParam(value = "filter", defaultValue = "All") String filter,
+                                                     org.springframework.security.core.Authentication authentication) {
         Long workspaceId = WorkspaceContextHolder.getRequiredContext().getWorkspaceId();
+        com.enterpriseai.backend.entity.User user = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
         Map<String, List<SearchResultItem>> resultsByCategory = new HashMap<>();
         int totalResults = 0;
 
@@ -60,7 +66,7 @@ public class GlobalSearchController {
             )).collect(Collectors.toList());
 
             try {
-                List<RetrievedChunk> chunks = retrievalPipeline.retrieveAndRank(query, workspaceId);
+                List<RetrievedChunk> chunks = retrievalPipeline.retrieveAndRank(query, workspaceId, user.getId());
                 List<SearchResultItem> chunkItems = chunks.stream().limit(10).map(c -> new SearchResultItem(
                         c.documentId().toString(), "document_content", c.documentFileName(), c.chunkText(), "/app/documents", null, "Content match (Score: " + c.similarityScore() + ")"
                 )).collect(Collectors.toList());

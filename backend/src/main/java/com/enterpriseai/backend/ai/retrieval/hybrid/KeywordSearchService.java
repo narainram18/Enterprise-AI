@@ -4,5 +4,5 @@ import java.util.List;
 import com.enterpriseai.backend.ai.retrieval.model.RetrievedChunk;
 
 public interface KeywordSearchService {
-    List<RetrievedChunk> search(String query, Long workspaceId);
+    List<RetrievedChunk> search(String query, Long workspaceId, Long userId);
 }

@@ -78,7 +78,7 @@ class AiChatRagIntegrationTest {
                 .thenReturn(new ChatRetrievalResult(
                         "[Document: handbook.pdf]\n\nContent:\nOwn onboarding",
                         List.of(new RetrievalCitation(9L, "handbook.pdf", 2, null, 0.92)),
-                        new RetrievalStatistics(1, 1, true)));
+                        new RetrievalStatistics(1, 1, true, null, null, 0, 0, 0, 0)));
         when(aiProvider.generate(any(AiChatRequest.class))).thenReturn(assistant.getContent());
         when(conversationService.saveAssistantMessage(
                 eq(42L),

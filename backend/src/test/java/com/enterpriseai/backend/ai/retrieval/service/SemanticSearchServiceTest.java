@@ -41,28 +41,28 @@ class SemanticSearchServiceTest {
 
     @Test
     void filtersByOwnerAndMinimumScore() {
-        when(vectorStore.search(anyList(), eq(3), eq(7L))).thenReturn(List.of(
+        when(vectorStore.search(anyList(), eq(3), eq(7L), org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of(
                 result(11L, 0.95, 7L, 4L, 0, "first"),
                 result(12L, 0.90, 8L, 5L, 0, "other owner"),
                 result(13L, 0.69, 7L, 4L, 1, "below threshold"),
                 result(14L, 0.85, 7L, 4L, 2, "second"),
                 result(15L, 0.80, 7L, 4L, 3, "truncated")));
 
-        List<RetrievedChunk> results = service.search("benefits", 7L);
+        List<RetrievedChunk> results = service.search("benefits", 7L, 1L);
 
         assertEquals(3, results.size());
         assertEquals(List.of(11L, 14L, 15L), results.stream().map(RetrievedChunk::chunkId).toList());
         assertTrue(results.stream().allMatch(result -> result.workspaceId().equals(7L)));
-        verify(vectorStore).search(List.of(0.1, 0.2), 3, 7L);
+        verify(vectorStore).search(List.of(0.1, 0.2), 3, 7L, 1L);
     }
 
     @Test
     void skipsResultsWithMissingOrInvalidMetadata() {
-        when(vectorStore.search(anyList(), eq(3), eq(7L))).thenReturn(List.of(
+        when(vectorStore.search(anyList(), eq(3), eq(7L), org.mockito.ArgumentMatchers.anyLong())).thenReturn(List.of(
                 new VectorSearchResult(20L, 0.99, Map.of("workspaceId", 7L)),
                 result(21L, 0.98, 7L, 4L, 0, "valid")));
 
-        List<RetrievedChunk> results = service.search("benefits", 7L);
+        List<RetrievedChunk> results = service.search("benefits", 7L, 1L);
 
         assertEquals(List.of(21L), results.stream().map(RetrievedChunk::chunkId).toList());
     }

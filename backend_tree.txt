@@ -1,0 +1,291 @@
+Folder PATH listing for volume Windows-SSD
+Volume serial number is F6E1-5BD8
+C:\USERS\NARAI\DOCUMENTS\ENTERPRISE-AI-WORKSPACE\BACKEND\SRC\MAIN\JAVA\COM\ENTERPRISEAI\BACKEND
+¦   BackendApplication.java
+¦   
++---ai
+¦   +---agent
+¦   ¦       Agent.java
+¦   ¦       AgentRegistry.java
+¦   ¦       
+¦   +---config
+¦   ¦       AiChatProperties.java
+¦   ¦       AiStreamingConfiguration.java
+¦   ¦       EmbeddingProperties.java
+¦   ¦       OllamaEmbeddingProperties.java
+¦   ¦       OllamaProperties.java
+¦   ¦       RetrievalProperties.java
+¦   ¦       
+¦   +---context
+¦   ¦       ChatContextExtension.java
+¦   ¦       DefaultChatContextExtension.java
+¦   ¦       RagPromptBuilder.java
+¦   ¦       TokenBudgetManager.java
+¦   ¦       
+¦   +---exception
+¦   ¦       AiEmbeddingException.java
+¦   ¦       AiGenerationException.java
+¦   ¦       AiRetrievalException.java
+¦   ¦       AiStreamCancelledException.java
+¦   ¦       AiVectorStoreException.java
+¦   ¦       
+¦   +---model
+¦   ¦       AiChatRequest.java
+¦   ¦       AiMessage.java
+¦   ¦       AiMessageRole.java
+¦   ¦       
+¦   +---provider
+¦   ¦   ¦   AiProvider.java
+¦   ¦   ¦   AiStreamHandler.java
+¦   ¦   ¦   EmbeddingProvider.java
+¦   ¦   ¦   
+¦   ¦   +---ollama
+¦   ¦       ¦   OllamaAiProvider.java
+¦   ¦       ¦   OllamaEmbeddingProvider.java
+¦   ¦       ¦   
+¦   ¦       +---dto
+¦   ¦               OllamaChatRequest.java
+¦   ¦               OllamaChatResponse.java
+¦   ¦               OllamaChatStreamChunk.java
+¦   ¦               OllamaEmbedRequest.java
+¦   ¦               OllamaEmbedResponse.java
+¦   ¦               OllamaMessage.java
+¦   ¦               
+¦   +---retrieval
+¦   ¦   +---hybrid
+¦   ¦   ¦       HybridSearchService.java
+¦   ¦   ¦       KeywordSearchService.java
+¦   ¦   ¦       PostgresFtsService.java
+¦   ¦   ¦       RetrievalPipeline.java
+¦   ¦   ¦       
+¦   ¦   +---model
+¦   ¦   ¦       ChatRetrievalResult.java
+¦   ¦   ¦       RetrievalCitation.java
+¦   ¦   ¦       RetrievalStatistics.java
+¦   ¦   ¦       RetrievedChunk.java
+¦   ¦   ¦       
+¦   ¦   +---reranker
+¦   ¦   ¦       CrossEncoderReranker.java
+¦   ¦   ¦       FallbackReranker.java
+¦   ¦   ¦       
+¦   ¦   +---service
+¦   ¦           ChatRetrievalService.java
+¦   ¦           QueryEmbeddingService.java
+¦   ¦           RetrievalContextBuilder.java
+¦   ¦           SemanticSearchService.java
+¦   ¦           
+¦   +---service
+¦   ¦       AgentTaskExecutionService.java
+¦   ¦       AiChatService.java
+¦   ¦       AiStreamingChatService.java
+¦   ¦       ToolStreamInterceptor.java
+¦   ¦       
+¦   +---tool
+¦   ¦   ¦   Tool.java
+¦   ¦   ¦   ToolContext.java
+¦   ¦   ¦   ToolExecutor.java
+¦   ¦   ¦   ToolParameter.java
+¦   ¦   ¦   ToolRegistry.java
+¦   ¦   ¦   ToolResult.java
+¦   ¦   ¦   
+¦   ¦   +---impl
+¦   ¦           BrowserTool.java
+¦   ¦           CodeAnalysisTool.java
+¦   ¦           ConversationSummaryTool.java
+¦   ¦           ExplainCodeTool.java
+¦   ¦           ExplainSQLTool.java
+¦   ¦           GenerateCodeTool.java
+¦   ¦           GenerateSQLTool.java
+¦   ¦           ListDocumentsTool.java
+¦   ¦           RetrieveDocumentTool.java
+¦   ¦           RiskAnalysisTool.java
+¦   ¦           SearchDocumentsTool.java
+¦   ¦           SummarizeDocumentTool.java
+¦   ¦           TaskPlannerTool.java
+¦   ¦           TimelineGeneratorTool.java
+¦   ¦           WebSearchTool.java
+¦   ¦           WorkspaceInfoTool.java
+¦   ¦           
+¦   +---vector
+¦       ¦   VectorStore.java
+¦       ¦   
+¦       +---dto
+¦       ¦       VectorSearchResult.java
+¦       ¦       
+¦       +---qdrant
+¦               QdrantConfiguration.java
+¦               QdrantProperties.java
+¦               QdrantVectorStore.java
+¦               
++---common
+¦       ApiResponse.java
+¦       ErrorResponse.java
+¦       PageResponse.java
+¦       
++---config
+¦       AuthorizationConfig.java
+¦       CacheConfig.java
+¦       CacheLoggingAspect.java
+¦       JwtProperties.java
+¦       MapperConfiguration.java
+¦       MDCLoggingFilter.java
+¦       OpenApiConfig.java
+¦       SecurityConfig.java
+¦       WebMvcConfig.java
+¦       
++---controller
+¦       AgentController.java
+¦       AgentTaskController.java
+¦       AuthController.java
+¦       ConversationController.java
+¦       DashboardController.java
+¦       DocumentController.java
+¦       GlobalSearchController.java
+¦       RefreshTokenController.java
+¦       TempController.java
+¦       UserController.java
+¦       
++---document
+¦   +---chunking
+¦   ¦       DocumentChunkingProperties.java
+¦   ¦       TextChunkingService.java
+¦   ¦       
+¦   +---config
+¦   ¦       DocumentStorageProperties.java
+¦   ¦       DocumentUploadProperties.java
+¦   ¦       
+¦   +---extractor
+¦   ¦       DocxTextExtractor.java
+¦   ¦       PdfTextExtractor.java
+¦   ¦       PlainTextExtractor.java
+¦   ¦       TextExtractionException.java
+¦   ¦       TextExtractionService.java
+¦   ¦       TextExtractor.java
+¦   ¦       
+¦   +---service
+¦   ¦       DocumentEmbeddingService.java
+¦   ¦       DocumentService.java
+¦   ¦       
+¦   +---storage
+¦           FileStorageException.java
+¦           FileStorageService.java
+¦           LocalFileStorageService.java
+¦           
++---dto
+¦       Activity.java
+¦       AgentTaskResponse.java
+¦       AiChatTurnResponse.java
+¦       AiStreamErrorResponse.java
+¦       AuthResponse.java
+¦       ChatMessageResponse.java
+¦       ConversationResponse.java
+¦       ConversationSummaryResponse.java
+¦       CreateAgentTaskRequest.java
+¦       CreateConversationRequest.java
+¦       CreateMessageRequest.java
+¦       DashboardResponse.java
+¦       DocumentDetailsResponse.java
+¦       DocumentResponse.java
+¦       DocumentTextResponse.java
+¦       GlobalSearchResponse.java
+¦       LoginRequest.java
+¦       LogoutRequest.java
+¦       RefreshTokenRequest.java
+¦       RegisterRequest.java
+¦       SearchResultItem.java
+¦       UpdateConversationRequest.java
+¦       UserProfileResponse.java
+¦       WorkspaceStats.java
+¦       
++---entity
+¦       AgentTask.java
+¦       AgentTaskStatus.java
+¦       BaseEntity.java
+¦       ChatMessage.java
+¦       Conversation.java
+¦       DocumentChunk.java
+¦       DocumentProcessingStatus.java
+¦       DocumentType.java
+¦       KnowledgeDocument.java
+¦       MessageRole.java
+¦       RefreshToken.java
+¦       Role.java
+¦       User.java
+¦       
++---exception
+¦       BadRequestException.java
+¦       DuplicateResourceException.java
+¦       ForbiddenException.java
+¦       GlobalExceptionHandler.java
+¦       ResourceNotFoundException.java
+¦       UnauthorizedException.java
+¦       
++---health
+¦       DocumentStorageHealthIndicator.java
+¦       OllamaHealthIndicator.java
+¦       QdrantHealthIndicator.java
+¦       
++---logging
+¦       RequestLoggingFilter.java
+¦       
++---mapper
+¦       AgentTaskMapper.java
+¦       ConversationMapper.java
+¦       UserMapper.java
+¦       
++---repository
+¦       AgentTaskRepository.java
+¦       ChatMessageRepository.java
+¦       ConversationRepository.java
+¦       DocumentChunkRepository.java
+¦       KnowledgeDocumentRepository.java
+¦       RefreshTokenRepository.java
+¦       UserRepository.java
+¦       
++---security
+¦       CustomUserDetailsService.java
+¦       JsonSecurityExceptionHandler.java
+¦       JwtAuthenticationFilter.java
+¦       JwtService.java
+¦       SecurityConstants.java
+¦       
++---service
+¦       AgentTaskService.java
+¦       AuthService.java
+¦       ConversationService.java
+¦       RefreshTokenService.java
+¦       UserService.java
+¦       
++---specification
+¦       UserSpecifications.java
+¦       
++---util
++---workspace
+    +---config
+    ¦       QdrantBackfillRunner.java
+    ¦       
+    +---context
+    ¦       WorkspaceContext.java
+    ¦       WorkspaceContextHolder.java
+    ¦       
+    +---controller
+    ¦       WorkspaceController.java
+    ¦       WorkspaceModeRequest.java
+    ¦       WorkspaceRequest.java
+    ¦       WorkspaceResponse.java
+    ¦       
+    +---entity
+    ¦       Workspace.java
+    ¦       WorkspaceMember.java
+    ¦       WorkspaceRole.java
+    ¦       
+    +---repository
+    ¦       WorkspaceMemberRepository.java
+    ¦       WorkspaceRepository.java
+    ¦       
+    +---security
+    ¦       WorkspaceInterceptor.java
+    ¦       
+    +---service
+            WorkspaceService.java
+            

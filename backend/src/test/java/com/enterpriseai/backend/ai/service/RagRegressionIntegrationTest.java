@@ -53,6 +53,7 @@ class RagRegressionIntegrationTest {
     private ChatRetrievalService chatRetrievalService;
     private VectorStore vectorStore;
     private KeywordSearchService keywordSearchService;
+    private UserRepository userRepository;
     
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -75,8 +76,9 @@ class RagRegressionIntegrationTest {
         
         RetrievalContextBuilder contextBuilder = new RetrievalContextBuilder(properties);
         
+        userRepository = Mockito.mock(UserRepository.class);
         chatRetrievalService = new ChatRetrievalService(
-                Mockito.mock(UserRepository.class), pipeline, contextBuilder, properties);
+                userRepository, pipeline, contextBuilder, properties);
 
         WorkspaceContext context = new WorkspaceContext(1L, com.enterpriseai.backend.workspace.entity.WorkspaceRole.OWNER, false);
         WorkspaceContextHolder.setContext(context);
@@ -102,9 +104,13 @@ class RagRegressionIntegrationTest {
             )));
         }
         
-        when(vectorStore.search(anyList(), eq(20), eq(1L))).thenReturn(semanticResults);
-        when(keywordSearchService.search(anyString(), eq(1L))).thenReturn(List.of());
+        when(vectorStore.search(anyList(), eq(20), eq(1L), org.mockito.ArgumentMatchers.any(Long.class))).thenReturn(semanticResults);
+        when(keywordSearchService.search(anyString(), eq(1L), org.mockito.ArgumentMatchers.any(Long.class))).thenReturn(List.of());
 
+        com.enterpriseai.backend.entity.User mockUser = new com.enterpriseai.backend.entity.User();
+        mockUser.setId(100L);
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(java.util.Optional.of(mockUser));
+        
         ChatRetrievalResult result = chatRetrievalService.retrieve("Who is the CEO?", "user@test.com");
         
         String context = result.context();

@@ -89,6 +89,13 @@ public class DocumentController {
                 documentService.retryProcessing(authentication.getName(), id)));
     }
 
+    @PostMapping("/{id}/restore/{versionId}")
+    public ResponseEntity<ApiResponse<DocumentDetailsResponse>> restore(
+            @PathVariable Long id, @PathVariable Long versionId, Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Document version restored successfully",
+                documentService.restoreVersion(authentication.getName(), id, versionId)));
+    }
+
     @org.springframework.web.bind.annotation.PatchMapping("/{id}/rename")
     public ResponseEntity<ApiResponse<DocumentDetailsResponse>> rename(
             @PathVariable Long id, 

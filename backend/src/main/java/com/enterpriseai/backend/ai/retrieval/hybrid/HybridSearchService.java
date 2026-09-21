@@ -33,17 +33,17 @@ public class HybridSearchService implements RetrievalPipeline {
     }
 
     @Override
-    public List<RetrievedChunk> retrieveAndRank(String query, Long workspaceId) {
+    public List<RetrievedChunk> retrieveAndRank(String query, Long workspaceId, Long userId) {
         log.info("HybridSearchService: Executing hybrid search for query '{}'", query);
 
         // 1. Execute both searches (in sequence for simplicity, could be parallelized)
-        List<RetrievedChunk> vectorResults = vectorSearchService.search(query, workspaceId);
+        List<RetrievedChunk> vectorResults = vectorSearchService.search(query, workspaceId, userId);
         log.info("--- SEMANTIC SEARCH RESULTS ---");
         for (RetrievedChunk c : vectorResults) {
             log.info("Chunk ID: {}, Score: {}", c.chunkId(), c.similarityScore());
         }
 
-        List<RetrievedChunk> keywordResults = keywordSearchService.search(query, workspaceId);
+        List<RetrievedChunk> keywordResults = keywordSearchService.search(query, workspaceId, userId);
         log.info("--- KEYWORD SEARCH RESULTS ---");
         for (RetrievedChunk c : keywordResults) {
             log.info("Chunk ID: {}, Score: {}", c.chunkId(), c.similarityScore());

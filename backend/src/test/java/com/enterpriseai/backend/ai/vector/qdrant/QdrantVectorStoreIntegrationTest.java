@@ -75,20 +75,20 @@ class QdrantVectorStoreIntegrationTest {
         );
 
         // 2. Search exact match chunk 1
-        List<VectorSearchResult> results1 = vectorStore.search(List.of(1.0, 0.0, 0.0), 5, null);
+        List<VectorSearchResult> results1 = vectorStore.search(List.of(1.0, 0.0, 0.0), 5, null, 1L);
         assertEquals(2, results1.size());
         assertEquals(chunk1, results1.get(0).chunkId());
         assertTrue(results1.get(0).score() > 0.9);
         assertEquals(docId1, results1.get(0).metadata().get("documentId"));
 
         // 3. Search exact match chunk 2
-        List<VectorSearchResult> results2 = vectorStore.search(List.of(0.0, 1.0, 0.0), 5, null);
+        List<VectorSearchResult> results2 = vectorStore.search(List.of(0.0, 1.0, 0.0), 5, null, 1L);
         assertEquals(2, results2.size());
         assertEquals(chunk2, results2.get(0).chunkId());
 
         // 4. Delete chunk 1
         vectorStore.delete(chunk1);
-        List<VectorSearchResult> resultsAfterDelete = vectorStore.search(List.of(1.0, 0.0, 0.0), 5, null);
+        List<VectorSearchResult> resultsAfterDelete = vectorStore.search(List.of(1.0, 0.0, 0.0), 5, null, 1L);
         assertEquals(1, resultsAfterDelete.size());
         assertEquals(chunk2, resultsAfterDelete.get(0).chunkId());
 
@@ -98,7 +98,7 @@ class QdrantVectorStoreIntegrationTest {
         // Wait a tiny bit for qdrant filter delete propagation if needed, though usually immediate
         Thread.sleep(100);
 
-        List<VectorSearchResult> resultsAfterDeleteDoc = vectorStore.search(List.of(0.0, 1.0, 0.0), 5, null);
+        List<VectorSearchResult> resultsAfterDeleteDoc = vectorStore.search(List.of(0.0, 1.0, 0.0), 5, null, 1L);
         assertEquals(0, resultsAfterDeleteDoc.size());
 
         // Clean up collection manually

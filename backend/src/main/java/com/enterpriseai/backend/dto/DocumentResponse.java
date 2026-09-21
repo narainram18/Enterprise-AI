@@ -10,6 +10,7 @@ public record DocumentResponse(
         String originalFileName,
         String contentType,
         Long fileSize,
+        Integer version,
         DocumentType documentType,
         DocumentProcessingStatus processingStatus,
         String extractionError,

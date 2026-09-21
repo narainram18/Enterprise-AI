@@ -54,7 +54,10 @@ class ChatRetrievalServiceTest {
         RetrievedChunk chunk = new RetrievedChunk(
                 11L, 22L, 1, null, 0.91, "handbook.pdf", DocumentType.PDF, "Responsibilities", 7L);
 
-        when(retrievalPipeline.retrieveAndRank("responsibilities", 7L)).thenReturn(List.of(chunk));
+        User mockUser = new User();
+        mockUser.setId(100L);
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(java.util.Optional.of(mockUser));
+        when(retrievalPipeline.retrieveAndRank(org.mockito.ArgumentMatchers.eq("responsibilities"), org.mockito.ArgumentMatchers.eq(7L), org.mockito.ArgumentMatchers.eq(100L))).thenReturn(List.of(chunk));
         when(contextBuilder.select(List.of(chunk))).thenReturn(List.of(chunk));
         when(contextBuilder.build(List.of(chunk))).thenReturn("Responsibilities");
 
@@ -70,7 +73,10 @@ class ChatRetrievalServiceTest {
 
     @Test
     void retrievalFailureDoesNotEscapeToChat() {
-        when(retrievalPipeline.retrieveAndRank(anyString(), anyLong()))
+        User mockUser = new User();
+        mockUser.setId(100L);
+        when(userRepository.findByEmailIgnoreCase(anyString())).thenReturn(java.util.Optional.of(mockUser));
+        when(retrievalPipeline.retrieveAndRank(anyString(), org.mockito.ArgumentMatchers.any(Long.class), org.mockito.ArgumentMatchers.any(Long.class)))
                 .thenThrow(new RuntimeException("Qdrant unavailable"));
 
         var result = service.retrieve("question", "user@example.com");

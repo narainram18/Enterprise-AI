@@ -61,7 +61,7 @@ public class RagArchitectureTest {
             new AiMessage(AiMessageRole.ASSISTANT, "The policy is X.")
         ), null, null, null);
 
-        String retrievalContext = "[Document: policy.pdf]\n\n--- Section 1 ---\nPolicy is Y.";
+        String retrievalContext = "[Workspace Source: policy.pdf]\n\n--- Section 1 ---\nPolicy is Y.";
 
         AiChatRequest result = builder.build(
             new Agent("test-agent", "Test", "Desc", "Icon", "Color", "You are a test agent", 0.7, 0.9, "Model", true, true, java.util.List.of(), null, null, java.util.List.of()),
@@ -97,7 +97,7 @@ public class RagArchitectureTest {
         String context = builder.build(chunks);
 
         // Document grouping check
-        assertTrue(context.indexOf("[Document: docA.pdf]") < context.indexOf("[Document: docB.pdf]"));
+        assertTrue(context.indexOf("[Workspace Source: docA.pdf]") < context.indexOf("[Workspace Source: docB.pdf]"));
         
         // Chunk ordering check (Section 1 should appear before Section 2 despite lower similarity)
         assertTrue(context.indexOf("Content A part 1") < context.indexOf("Content A part 2"));

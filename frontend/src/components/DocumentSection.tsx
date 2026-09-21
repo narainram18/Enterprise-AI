@@ -38,6 +38,7 @@ export function DocumentSection({ title, count, documents, onSelect, onDelete, o
                       <h4 className="document-card-name" title={doc.originalFileName}>{doc.originalFileName}</h4>
                       <div className="document-card-details">
                         <span className="doc-type-badge">{doc.documentType}</span>
+                        {doc.version > 1 && <span className="doc-type-badge">v{doc.version}</span>}
                         <span>&middot;</span>
                         <span>{formatFileSize(doc.fileSize)}</span>
                         <span>&middot;</span>

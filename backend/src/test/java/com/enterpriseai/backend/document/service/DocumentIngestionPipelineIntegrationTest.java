@@ -156,7 +156,7 @@ class DocumentIngestionPipelineIntegrationTest {
         }
 
         @Override
-        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId) {
+        public List<VectorSearchResult> search(List<Double> embedding, int topK, Long workspaceId, Long userId) {
             return List.of();
         }
 

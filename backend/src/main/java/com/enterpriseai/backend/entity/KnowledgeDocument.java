@@ -42,6 +42,20 @@ public class KnowledgeDocument extends BaseEntity {
     @JoinColumn(name = "created_by_id", nullable = false)
     private User createdBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_document_id")
+    private KnowledgeDocument parentDocument;
+
+    @Column(name = "version", nullable = false)
+    private Integer version = 1;
+
+    @Column(name = "is_latest_version", nullable = false)
+    private boolean isLatestVersion = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_level", nullable = false, length = 32)
+    private DocumentAccessLevel accessLevel = DocumentAccessLevel.PUBLIC;
+
     @Column(name = "original_file_name", nullable = false, length = 255)
     private String originalFileName;
 

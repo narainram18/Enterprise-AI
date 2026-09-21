@@ -25,7 +25,7 @@ class RetrievalContextBuilderTest {
                 chunk(13L, 4L, 2, 0.70, "truncated")));
 
         assertTrue(context.indexOf("first") < context.indexOf("second"));
-        assertTrue(context.contains("[Document: handbook.txt]"));
+        assertTrue(context.contains("[Workspace Source: handbook.txt]"));
         assertTrue(context.contains("--- Section 0 ---"));
         assertTrue(context.contains("first"));
         assertTrue(!context.contains("duplicate"));

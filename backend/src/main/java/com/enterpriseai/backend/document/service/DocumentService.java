@@ -95,8 +95,21 @@ public class DocumentService {
         Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
         
         String originalFileName = originalName(file);
-        if (documentRepository.existsByWorkspaceIdAndOriginalFileName(workspace.getId(), originalFileName)) {
-            throw new IllegalArgumentException("A document with the name '" + originalFileName + "' already exists in this workspace.");
+        
+        KnowledgeDocument parentDocument = null;
+        int version = 1;
+        var existingDoc = documentRepository.findFirstByWorkspaceIdAndOriginalFileNameOrderByVersionDesc(workspace.getId(), originalFileName);
+        if (existingDoc.isPresent()) {
+            parentDocument = existingDoc.get();
+            version = parentDocument.getVersion() + 1;
+            
+            // Mark old version as not latest
+            parentDocument.setLatestVersion(false);
+            documentRepository.save(parentDocument);
+            
+            // Delete stale vectors and chunks from the old version
+            documentEmbeddingService.deleteVectors(parentDocument);
+            documentChunkRepository.deleteByDocumentId(parentDocument.getId());
         }
         
         String storageKey = fileStorageService.store(file);
@@ -109,6 +122,8 @@ public class DocumentService {
         document.setContentType(contentType(file));
         document.setFileSize(file.getSize());
         document.setDocumentType(type);
+        document.setParentDocument(parentDocument);
+        document.setVersion(version);
         
         updateStatus(document, DocumentProcessingStatus.UPLOADED);
 
@@ -210,8 +225,61 @@ public class DocumentService {
         if (document.getProcessingStatus() == DocumentProcessingStatus.READY) {
             throw new BadRequestException("Document is already processed");
         }
+        
+        // Clean up any partial state
+        documentChunkRepository.deleteByDocumentId(document.getId());
+        documentEmbeddingService.deleteVectors(document);
+        document.setExtractedText(null);
+        document.setExtractionError(null);
+        updateStatus(document, DocumentProcessingStatus.UPLOADED);
+        
         processDocument(document);
         return toDetailsResponse(document);
+    }
+
+    @Transactional
+    @CacheEvict(value = "retrievalResults", allEntries = true)
+    public DocumentDetailsResponse restoreVersion(String email, Long documentId, Long versionToRestoreId) {
+        log.info("CACHE EVICT - Invalidation triggered by document restore");
+        WorkspaceContext context = WorkspaceContextHolder.getRequiredContext();
+        Workspace workspace = workspaceRepository.getReferenceById(context.getWorkspaceId());
+        User user = resolveUser(email);
+        
+        KnowledgeDocument versionToRestore = findOwned(email, versionToRestoreId);
+        
+        var existingDoc = documentRepository.findFirstByWorkspaceIdAndOriginalFileNameOrderByVersionDesc(workspace.getId(), versionToRestore.getOriginalFileName());
+        if (existingDoc.isEmpty()) {
+            throw new IllegalStateException("Cannot restore version for an unknown document chain.");
+        }
+        
+        KnowledgeDocument parentDocument = existingDoc.get();
+        int newVersion = parentDocument.getVersion() + 1;
+        
+        // Mark old version as not latest
+        parentDocument.setLatestVersion(false);
+        documentRepository.save(parentDocument);
+        
+        // Delete stale vectors and chunks from the old version
+        documentEmbeddingService.deleteVectors(parentDocument);
+        documentChunkRepository.deleteByDocumentId(parentDocument.getId());
+        
+        KnowledgeDocument newDocument = new KnowledgeDocument();
+        newDocument.setCreatedBy(user);
+        newDocument.setWorkspace(workspace);
+        newDocument.setOriginalFileName(versionToRestore.getOriginalFileName());
+        newDocument.setStorageKey(versionToRestore.getStorageKey());
+        newDocument.setContentType(versionToRestore.getContentType());
+        newDocument.setFileSize(versionToRestore.getFileSize());
+        newDocument.setDocumentType(versionToRestore.getDocumentType());
+        newDocument.setParentDocument(parentDocument);
+        newDocument.setVersion(newVersion);
+        newDocument.setLatestVersion(true);
+        newDocument.setAccessLevel(versionToRestore.getAccessLevel());
+        
+        updateStatus(newDocument, DocumentProcessingStatus.UPLOADED);
+        
+        processDocument(newDocument);
+        return toDetailsResponse(documentRepository.save(newDocument));
     }
 
     public InputStream download(String email, Long id) {
@@ -293,7 +361,7 @@ public class DocumentService {
     private DocumentResponse toResponse(KnowledgeDocument document) {
         return new DocumentResponse(
                 document.getId(), document.getOriginalFileName(), document.getContentType(),
-                document.getFileSize(), document.getDocumentType(), document.getProcessingStatus(),
+                document.getFileSize(), document.getVersion(), document.getDocumentType(), document.getProcessingStatus(),
                 document.getExtractionError(), document.getCreatedAt(), document.getUpdatedAt());
     }
 
@@ -305,7 +373,7 @@ public class DocumentService {
         LocalDateTime lastIndexedAt = document.getProcessingStatus() == DocumentProcessingStatus.READY ? document.getUpdatedAt() : null;
         return new DocumentDetailsResponse(
                 document.getId(), document.getOriginalFileName(), document.getContentType(),
-                document.getFileSize(), document.getDocumentType(), document.getProcessingStatus(),
+                document.getFileSize(), document.getVersion(), document.getDocumentType(), document.getProcessingStatus(),
                 document.getExtractionError(), 
                 document.getCreatedBy().getName(),
                 document.getWorkspace().getName(),
